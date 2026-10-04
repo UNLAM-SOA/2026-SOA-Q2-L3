@@ -52,6 +52,7 @@ constexpr unsigned long PERIODO_BUZZER_SECA_MS = 1200;
 constexpr unsigned long PERIODO_BUZZER_LLUVIA_MS = 300;
 constexpr unsigned long PERIODO_RECONEXION_MQTT_MS = 5000;
 constexpr unsigned long PERIODO_PUBLICACION_SENSOR_MS = 2000;
+constexpr unsigned long PERIODO_PUBLICACION_CONEXION_MS = 5000;
 
 // ======================================================
 // FRECUENCIAS BUZZER
@@ -79,9 +80,11 @@ constexpr char MQTT_CLIENT_ID[] = "esp32-lavadero-grupo5";
 constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo5/lavadero/comando";
 constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo5/lavadero/estado";
 constexpr char MQTT_TOPIC_SENSOR[] = "unlam/soa/grupo5/lavadero/sensor";
+constexpr char MQTT_TOPIC_CONEXION[] = "unlam/soa/grupo5/lavadero/conexion";
 
 constexpr char MQTT_COMANDO_INICIAR[] = "INICIAR";
 constexpr char MQTT_COMANDO_FINALIZAR[] = "FINALIZAR";
+constexpr char MQTT_MENSAJE_ONLINE[] = "ONLINE";
 
 // ======================================================
 // FREERTOS
@@ -157,6 +160,7 @@ PubSubClient mqttClient(wifiClient);
 
 unsigned long ultimoIntentoMQTTMs = 0;
 unsigned long ultimaPublicacionSensorMs = 0;
+unsigned long ultimaPublicacionConexionMs = 0;
 
 // ======================================================
 // TEMPORIZADORES
@@ -192,6 +196,8 @@ void recibirMensajeMQTT(char *topic, byte *payload, unsigned int length);
 void publicarEstadoMQTT();
 void actualizarPublicacionSensorMQTT();
 void publicarSensorMQTT();
+void actualizarPublicacionConexionMQTT();
+void publicarConexionMQTT();
 
 void leerSensores();
 void leerBoton();
@@ -329,6 +335,8 @@ void actualizarMQTT()
     } else {
       Serial.println("[MQTT] No se pudo suscribir al topic de comandos.");
     }
+
+    publicarConexionMQTT();
   } else {
     Serial.println("[MQTT] No se pudo conectar.");
   }
@@ -436,6 +444,41 @@ void publicarSensorMQTT()
 }
 
 // ======================================================
+// PUBLICAR CONEXION MQTT
+// ======================================================
+
+void actualizarPublicacionConexionMQTT()
+{
+  if (!mqttClient.connected()) {
+    return;
+  }
+
+  unsigned long ahora = millis();
+
+  if (ahora - ultimaPublicacionConexionMs < PERIODO_PUBLICACION_CONEXION_MS) {
+    return;
+  }
+
+  publicarConexionMQTT();
+}
+
+void publicarConexionMQTT()
+{
+  if (!mqttClient.connected()) {
+    return;
+  }
+
+  if (!mqttClient.publish(MQTT_TOPIC_CONEXION, MQTT_MENSAJE_ONLINE)) {
+    Serial.println("[MQTT] Error al publicar conexion.");
+    return;
+  }
+
+  ultimaPublicacionConexionMs = millis();
+
+  Serial.println("[MQTT] Conexion publicada: ONLINE");
+}
+
+// ======================================================
 // TAREA SENSORES
 // ======================================================
 
@@ -469,6 +512,7 @@ void tareaFSM(void *parametros)
 
   while (true) {
     actualizarMQTT();
+    actualizarPublicacionConexionMQTT();
     actualizarPublicacionSensorMQTT();
 
     if (xQueueReceive(
