@@ -7,6 +7,20 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+/*
+SIMULADO DE WOWKI ACTUALIZADO
+https://wokwi.com/projects/476992389295348737
+
+ESCUCHAR BROKER
+mosquitto_sub -h broker.emqx.io -p 1883 -t "unlam/soa/grupo3/lavadero/#" -v
+
+ENVIAR ESTADO
+while true; do mosquitto_pub -h broker.emqx.io -p 1883 -t "unlam/soa/grupo3/lavadero/estado" -m "{estado}"; sleep 5; done
+
+ENVIAR SENSOR
+mosquitto_pub -h broker.emqx.io -p 1883 -t "unlam/soa/grupo3/lavadero/sensor" -m "{nivel_de_humedad}"
+ */
+
 public class MainActivity extends AppCompatActivity {
 
     private MqttManager mqttManager;

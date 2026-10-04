@@ -25,6 +25,10 @@ public class MqttManager {
     private static final String BROKER_URL = "tcp://broker.emqx.io:1883";
     private static final String TOPIC_ESTADO = "unlam/soa/grupo3/lavadero/estado";
     private static final String TOPIC_SENSOR = "unlam/soa/grupo3/lavadero/sensor";
+    private static final String TOPIC_COMANDO = "unlam/soa/grupo3/lavadero/comando";
+
+    public static final String COMANDO_INICIAR = "INICIAR";
+    public static final String COMANDO_FINALIZAR = "FINALIZAR";
 
     private static final long TIMEOUT_ESTACION_MS = 15000;
     private static final long INTERVALO_VERIFICACION_MS = 5000;
@@ -178,6 +182,27 @@ public class MqttManager {
             notificarHumedad(humedad);
         } catch (NumberFormatException e) {
             Log.w(TAG, "Humedad inválida: " + payload);
+        }
+    }
+
+    public boolean enviarComando(String comando) {
+        if (!estaConectado() || !estacionConectada) {
+            return false;
+        }
+
+        try {
+            MqttMessage mensaje = new MqttMessage(
+                    comando.getBytes(StandardCharsets.UTF_8)
+            );
+            mensaje.setQos(0);
+
+            mqttClient.publish(TOPIC_COMANDO, mensaje);
+
+            Log.d(TAG, "Comando enviado: " + comando);
+            return true;
+        } catch (MqttException e) {
+            Log.e(TAG, "Error al enviar comando: " + comando, e);
+            return false;
         }
     }
 

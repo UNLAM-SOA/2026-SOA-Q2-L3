@@ -37,6 +37,11 @@
     <string name="sin_conexion_broker">⚠ Sin conexión con el broker</string>
     <string name="estacion_sin_conexion_alerta">⚠ Estación sin conexión</string>
 
+    <string name="error_iniciar_ciclo">No se pudo iniciar el ciclo. Verificá la conexión con la estación e intentá nuevamente.</string>
+    <string name="error_finalizar_ciclo">No se pudo confirmar la finalización del ciclo.</string>
+    <string name="finalizacion_manual">Podés acercarte a la estación de secado y finalizar el ciclo manualmente.</string>
+    <string name="sin_conexion_finalizacion_manual">Se perdió la conexión con la estación. Si necesitás finalizar el ciclo, podés hacerlo manualmente desde la estación de secado.</string>
+
     <string name="condiciones_titulo">Condiciones</string>
     <string name="condiciones_subtitulo">Evaluá la iluminación del ambiente</string>
     <string name="condiciones_descripcion">☀  Acercá el teléfono al lugar donde se encuentra la ropa para medir la luz ambiente.</string>

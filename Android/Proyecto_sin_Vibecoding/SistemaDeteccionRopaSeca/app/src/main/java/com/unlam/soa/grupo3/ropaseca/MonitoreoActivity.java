@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -16,7 +17,9 @@ public class MonitoreoActivity extends AppCompatActivity {
     private static final String ESTADO_MONITOREANDO = "MONITOREANDO_SECADO";
     private static final String ESTADO_ROPA_SECA = "ROPA_SECA";
     private static final String ESTADO_LLUVIA = "LLUVIA";
+
     private static final long INTERVALO_ACTUALIZACION_MS = 1000;
+    private static final long TIMEOUT_COMANDO_MS = 2000;
 
     private TextView tvEstado;
     private TextView tvHumedad;
@@ -31,12 +34,38 @@ public class MonitoreoActivity extends AppCompatActivity {
     private Button btnCiclo;
     private MqttManager mqttManager;
 
+    private boolean comandoPendiente;
+    private String estadoEsperado;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
+
     private final Runnable actualizadorTiempo = new Runnable() {
         @Override
         public void run() {
             actualizarUltimaActualizacion();
             handler.postDelayed(this, INTERVALO_ACTUALIZACION_MS);
+        }
+    };
+
+    private final Runnable timeoutComando = () -> {
+        if (!comandoPendiente) {
+            return;
+        }
+
+        boolean eraFinalizacion = ESTADO_ESPERA.equals(estadoEsperado);
+
+        comandoPendiente = false;
+        estadoEsperado = null;
+        actualizarBoton();
+
+        if (eraFinalizacion) {
+            mostrarErrorFinalizacion();
+        } else {
+            Toast.makeText(
+                    this,
+                    R.string.error_iniciar_ciclo,
+                    Toast.LENGTH_LONG
+            ).show();
         }
     };
 
@@ -48,7 +77,11 @@ public class MonitoreoActivity extends AppCompatActivity {
 
         @Override
         public void onBrokerDesconectado() {
-            runOnUiThread(() -> actualizarConexionYBoton());
+            runOnUiThread(() -> {
+                cancelarComandoPendiente();
+                actualizarConexionYBoton();
+                avisarFinalizacionManualSiCorresponde();
+            });
         }
 
         @Override
@@ -58,12 +91,17 @@ public class MonitoreoActivity extends AppCompatActivity {
 
         @Override
         public void onEstacionDesconectada() {
-            runOnUiThread(() -> actualizarConexionYBoton());
+            runOnUiThread(() -> {
+                cancelarComandoPendiente();
+                actualizarConexionYBoton();
+                avisarFinalizacionManualSiCorresponde();
+            });
         }
 
         @Override
         public void onEstadoRecibido(String estado) {
             runOnUiThread(() -> {
+                confirmarComandoSiCorresponde(estado);
                 actualizarEstado(estado);
                 actualizarConexionYBoton();
             });
@@ -96,6 +134,8 @@ public class MonitoreoActivity extends AppCompatActivity {
         btnCiclo = findViewById(R.id.btnCiclo);
 
         findViewById(R.id.btnVolver).setOnClickListener(v -> finish());
+        btnCiclo.setOnClickListener(v -> cambiarEstadoCiclo());
+
         mqttManager = MqttManager.getInstance();
         cargarUltimosDatos();
     }
@@ -114,6 +154,7 @@ public class MonitoreoActivity extends AppCompatActivity {
         super.onStop();
         mqttManager.quitarListener(mqttListener);
         handler.removeCallbacks(actualizadorTiempo);
+        handler.removeCallbacks(timeoutComando);
     }
 
     private void cargarUltimosDatos() {
@@ -135,6 +176,93 @@ public class MonitoreoActivity extends AppCompatActivity {
         actualizarUltimaActualizacion();
     }
 
+    private void cambiarEstadoCiclo() {
+        if (comandoPendiente) {
+            return;
+        }
+
+        String estadoActual = mqttManager.getUltimoEstado();
+
+        if (ESTADO_ESPERA.equals(estadoActual)) {
+            enviarComando(
+                    MqttManager.COMANDO_INICIAR,
+                    ESTADO_MONITOREANDO
+            );
+        } else {
+            enviarComando(
+                    MqttManager.COMANDO_FINALIZAR,
+                    ESTADO_ESPERA
+            );
+        }
+    }
+
+    private void enviarComando(String comando, String nuevoEstadoEsperado) {
+        boolean enviado = mqttManager.enviarComando(comando);
+
+        if (!enviado) {
+            if (MqttManager.COMANDO_FINALIZAR.equals(comando)) {
+                mostrarErrorFinalizacion();
+            } else {
+                Toast.makeText(
+                        this,
+                        R.string.error_iniciar_ciclo,
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+
+            actualizarConexionYBoton();
+            return;
+        }
+
+        comandoPendiente = true;
+        estadoEsperado = nuevoEstadoEsperado;
+
+        actualizarBoton();
+
+        handler.removeCallbacks(timeoutComando);
+        handler.postDelayed(timeoutComando, TIMEOUT_COMANDO_MS);
+    }
+
+    private void confirmarComandoSiCorresponde(String estado) {
+        if (!comandoPendiente || !estado.equals(estadoEsperado)) {
+            return;
+        }
+
+        cancelarComandoPendiente();
+    }
+
+    private void cancelarComandoPendiente() {
+        comandoPendiente = false;
+        estadoEsperado = null;
+        handler.removeCallbacks(timeoutComando);
+    }
+
+    private void mostrarErrorFinalizacion() {
+        Toast.makeText(
+                this,
+                R.string.error_finalizar_ciclo,
+                Toast.LENGTH_LONG
+        ).show();
+
+        Toast.makeText(
+                this,
+                R.string.finalizacion_manual,
+                Toast.LENGTH_LONG
+        ).show();
+    }
+
+    private void avisarFinalizacionManualSiCorresponde() {
+        String estadoActual = mqttManager.getUltimoEstado();
+
+        if (estadoActual != null && !ESTADO_ESPERA.equals(estadoActual)) {
+            Toast.makeText(
+                    this,
+                    R.string.sin_conexion_finalizacion_manual,
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
     private void actualizarEstado(String estado) {
         switch (estado) {
             case ESTADO_ESPERA:
@@ -143,24 +271,28 @@ public class MonitoreoActivity extends AppCompatActivity {
                 bloqueDatosSecado.setVisibility(View.GONE);
                 mostrarMensajeEspera();
                 break;
+
             case ESTADO_MONITOREANDO:
                 tvEstado.setText(R.string.estado_monitoreando);
                 btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 bloqueMensajeEstado.setVisibility(View.GONE);
                 break;
+
             case ESTADO_ROPA_SECA:
                 tvEstado.setText(R.string.estado_ropa_seca);
                 btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 mostrarMensajeRopaSeca();
                 break;
+
             case ESTADO_LLUVIA:
                 tvEstado.setText(R.string.estado_lluvia);
                 btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 mostrarMensajeLluvia();
                 break;
+
             default:
                 tvEstado.setText(estado);
                 bloqueDatosSecado.setVisibility(View.GONE);
@@ -215,25 +347,33 @@ public class MonitoreoActivity extends AppCompatActivity {
     private void actualizarBoton() {
         boolean habilitado = mqttManager.estaConectado()
                 && mqttManager.estaEstacionConectada()
-                && mqttManager.getUltimoEstado() != null;
+                && mqttManager.getUltimoEstado() != null
+                && !comandoPendiente;
+
         btnCiclo.setEnabled(habilitado);
         btnCiclo.setAlpha(habilitado ? 1.0f : 0.5f);
     }
 
     private void actualizarUltimaActualizacion() {
         long ultimaLectura = mqttManager.getUltimaLecturaSensor();
+
         if (ultimaLectura == 0) {
             tvUltimaActualizacion.setText(R.string.esperando_actualizacion);
             return;
         }
 
         long segundos = (System.currentTimeMillis() - ultimaLectura) / 1000;
+
         if (segundos < 5) {
             tvUltimaActualizacion.setText(R.string.actualizacion_ahora);
         } else if (segundos < 60) {
-            tvUltimaActualizacion.setText(getString(R.string.actualizacion_segundos, segundos));
+            tvUltimaActualizacion.setText(
+                    getString(R.string.actualizacion_segundos, segundos)
+            );
         } else {
-            tvUltimaActualizacion.setText(getString(R.string.actualizacion_minutos, segundos / 60));
+            tvUltimaActualizacion.setText(
+                    getString(R.string.actualizacion_minutos, segundos / 60)
+            );
         }
     }
 }
