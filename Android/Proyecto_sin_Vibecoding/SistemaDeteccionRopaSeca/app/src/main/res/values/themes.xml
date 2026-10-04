@@ -1,0 +1,4 @@
+<resources>
+    <style name="Base.Theme.SistemaDeteccionRopaSeca" parent="Theme.Material3.Light.NoActionBar" />
+    <style name="Theme.SistemaDeteccionRopaSeca" parent="Base.Theme.SistemaDeteccionRopaSeca" />
+</resources>
