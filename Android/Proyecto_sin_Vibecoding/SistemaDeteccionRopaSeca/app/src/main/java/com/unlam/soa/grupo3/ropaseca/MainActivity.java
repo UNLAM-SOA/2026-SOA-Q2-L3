@@ -8,10 +8,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    private MqttManager mqttManager;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mqttManager = MqttManager.getInstance();
+
+        mqttManager.conectar();
 
         Button btnMonitorear = findViewById(R.id.btnMonitorear);
         Button btnCondiciones = findViewById(R.id.btnCondiciones);
