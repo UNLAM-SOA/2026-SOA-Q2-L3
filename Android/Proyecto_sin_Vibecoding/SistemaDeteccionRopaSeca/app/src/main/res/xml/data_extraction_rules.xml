@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?><!--
    Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   See https://developer.android.com/about/versions/12/bewById(R.id.btnMonitorear);
+        Button btnCondiciones = findViewById(R.id.btnCondiciones);
+        Button btnConexion = findViewById(R.id.btnConexion);
+
+        btnMonitorear.setOnClickListener(v ->
+                abrirActivity(MonitoreoActivity.class));
+
+        btnCondiciones.setOnClickListener(v ->
+                abrirActivity(CondicionesActivity.class));
+
+        btnConexion.setOnClickListener(v ->
+                abrirActivity(ConexionActivity.class));ackup-restore#xml-changes
    for details.
 -->
 <data-extraction-rules>

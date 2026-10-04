@@ -13,35 +13,45 @@ public class ConexionActivity extends AppCompatActivity {
 
     private MqttManager mqttManager;
 
-    private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
-        @Override
-        public void onBrokerConectado() {
-            runOnUiThread(() -> mostrarBrokerConectado());
-        }
+    private final MqttManager.MqttListener mqttListener =
+            new MqttManager.MqttListener() {
 
-        @Override
-        public void onBrokerDesconectado() {
-            runOnUiThread(() -> mostrarBrokerDesconectado());
-        }
+                @Override
+                public void onBrokerConectado() {
+                    runOnUiThread(() -> mostrarBrokerConectado());
+                }
 
-        @Override
-        public void onEstacionConectada() {
-            runOnUiThread(() -> {
-                mostrarEstacionConectada();
-                actualizarUltimaComunicacion();
-            });
-        }
+                @Override
+                public void onBrokerDesconectado() {
+                    runOnUiThread(() -> mostrarBrokerDesconectado());
+                }
 
-        @Override
-        public void onEstadoRecibido(String estado) {
-            runOnUiThread(() -> actualizarUltimaComunicacion());
-        }
+                @Override
+                public void onEstacionConectada() {
+                    runOnUiThread(() -> {
+                        mostrarEstacionConectada();
+                        actualizarUltimaComunicacion();
+                    });
+                }
 
-        @Override
-        public void onHumedadRecibida(int humedad) {
-            runOnUiThread(() -> actualizarUltimaComunicacion());
-        }
-    };
+                @Override
+                public void onEstacionDesconectada() {
+                    runOnUiThread(() -> {
+                        mostrarEstacionDesconectada();
+                        actualizarUltimaComunicacion();
+                    });
+                }
+
+                @Override
+                public void onEstadoRecibido(String estado) {
+                    runOnUiThread(() -> actualizarUltimaComunicacion());
+                }
+
+                @Override
+                public void onHumedadRecibida(int humedad) {
+                    runOnUiThread(() -> actualizarUltimaComunicacion());
+                }
+            };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,6 +134,7 @@ public class ConexionActivity extends AppCompatActivity {
             );
         } else {
             long minutos = segundos / 60;
+
             tvUltimaComunicacion.setText(
                     "Última comunicación: hace " + minutos + " min"
             );

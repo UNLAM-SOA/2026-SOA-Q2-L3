@@ -1,5 +1,8 @@
 package com.unlam.soa.grupo3.ropaseca;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
@@ -16,9 +19,15 @@ public class MqttManager {
 
     private static final String BROKER_URL = "tcp://test.mosquitto.org:1883";
 
-    private static final String TOPIC_CONEXION = "unlam/soa/grupo3/lavadero/conexion";
-    private static final String TOPIC_ESTADO = "unlam/soa/grupo3/lavadero/estado";
-    private static final String TOPIC_SENSOR = "unlam/soa/grupo3/lavadero/sensor";
+    private static final String TOPIC_CONEXION =
+            "unlam/soa/grupo3/lavadero/conexion";
+    private static final String TOPIC_ESTADO =
+            "unlam/soa/grupo3/lavadero/estado";
+    private static final String TOPIC_SENSOR =
+            "unlam/soa/grupo3/lavadero/sensor";
+
+    private static final long TIMEOUT_ESTACION_MS = 15000;
+    private static final long INTERVALO_VERIFICACION_MS = 5000;
 
     private static MqttManager instance;
 
@@ -31,7 +40,18 @@ public class MqttManager {
 
     private final List<MqttListener> listeners = new ArrayList<>();
 
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private final Runnable verificadorConexion = new Runnable() {
+        @Override
+        public void run() {
+            verificarConexionEstacion();
+            handler.postDelayed(this, INTERVALO_VERIFICACION_MS);
+        }
+    };
+
     private MqttManager() {
+        handler.post(verificadorConexion);
     }
 
     public static synchronized MqttManager getInstance() {
@@ -46,6 +66,7 @@ public class MqttManager {
         void onBrokerConectado();
         void onBrokerDesconectado();
         void onEstacionConectada();
+        void onEstacionDesconectada();
         void onEstadoRecibido(String estado);
         void onHumedadRecibida(int humedad);
     }
@@ -146,9 +167,12 @@ public class MqttManager {
         System.out.println("MQTT conexión: " + payload);
 
         if ("ONLINE".equalsIgnoreCase(payload)) {
-            estacionConectada = true;
             registrarComunicacion();
-            notificarEstacionConectada();
+
+            if (!estacionConectada) {
+                estacionConectada = true;
+                notificarEstacionConectada();
+            }
         }
     }
 
@@ -160,6 +184,7 @@ public class MqttManager {
 
         ultimoEstado = estado;
         registrarComunicacion();
+        marcarEstacionConectada();
 
         System.out.println("MQTT estado: " + estado);
 
@@ -177,6 +202,7 @@ public class MqttManager {
 
             ultimaHumedad = humedad;
             registrarComunicacion();
+            marcarEstacionConectada();
 
             System.out.println("MQTT humedad: " + humedad + "%");
 
@@ -189,6 +215,30 @@ public class MqttManager {
 
     private void registrarComunicacion() {
         ultimaComunicacion = System.currentTimeMillis();
+    }
+
+    private void marcarEstacionConectada() {
+        if (!estacionConectada) {
+            estacionConectada = true;
+            notificarEstacionConectada();
+        }
+    }
+
+    private void verificarConexionEstacion() {
+        if (!estacionConectada || ultimaComunicacion == 0) {
+            return;
+        }
+
+        long tiempoSinComunicacion =
+                System.currentTimeMillis() - ultimaComunicacion;
+
+        if (tiempoSinComunicacion > TIMEOUT_ESTACION_MS) {
+            estacionConectada = false;
+
+            System.out.println("MQTT: estación sin conexión");
+
+            notificarEstacionDesconectada();
+        }
     }
 
     private synchronized void notificarBrokerConectado() {
@@ -206,6 +256,12 @@ public class MqttManager {
     private synchronized void notificarEstacionConectada() {
         for (MqttListener listener : new ArrayList<>(listeners)) {
             listener.onEstacionConectada();
+        }
+    }
+
+    private synchronized void notificarEstacionDesconectada() {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onEstacionDesconectada();
         }
     }
 
