@@ -1,26 +1,37 @@
 package com.unlam.soa.grupo3.ropaseca;
 
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class MqttManager {
 
-    private static final String BROKER_URL =
-            "tcp://test.mosquitto.org:1883";
+    private static final String BROKER_URL = "tcp://test.mosquitto.org:1883";
 
-    // Única instancia de MqttManager para toda la aplicación
+    private static final String TOPIC_CONEXION = "unlam/soa/grupo3/lavadero/conexion";
+    private static final String TOPIC_ESTADO = "unlam/soa/grupo3/lavadero/estado";
+    private static final String TOPIC_SENSOR = "unlam/soa/grupo3/lavadero/sensor";
+
     private static MqttManager instance;
 
     private MqttAsyncClient mqttClient;
-    private ConexionListener conexionListener;
+
+    private boolean estacionConectada = false;
+    private String ultimoEstado = null;
+    private Integer ultimaHumedad = null;
+    private long ultimaComunicacion = 0;
+
+    private final List<MqttListener> listeners = new ArrayList<>();
 
     private MqttManager() {
-        // Constructor privado para evitar crear múltiples instancias
     }
 
     public static synchronized MqttManager getInstance() {
@@ -31,32 +42,33 @@ public class MqttManager {
         return instance;
     }
 
-    public interface ConexionListener {
-        void onConectado();
-        void onError(String mensaje);
+    public interface MqttListener {
+        void onBrokerConectado();
+        void onBrokerDesconectado();
+        void onEstacionConectada();
+        void onEstadoRecibido(String estado);
+        void onHumedadRecibida(int humedad);
     }
 
-    public void setConexionListener(ConexionListener listener) {
-        this.conexionListener = listener;
+    public synchronized void agregarListener(MqttListener listener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
     }
 
-    public void conectar() {
+    public synchronized void quitarListener(MqttListener listener) {
+        listeners.remove(listener);
+    }
 
-        // Si ya estamos conectados, no hacemos otra conexión
+    public synchronized void conectar() {
         if (estaConectado()) {
-            if (conexionListener != null) {
-                conexionListener.onConectado();
-            }
+            notificarBrokerConectado();
             return;
         }
 
         try {
-
-            // Si todavía no existe el cliente MQTT, lo creamos
             if (mqttClient == null) {
-
-                String clientId =
-                        "android-grupo3-" + UUID.randomUUID();
+                String clientId = "android-grupo3-" + UUID.randomUUID();
 
                 mqttClient = new MqttAsyncClient(
                         BROKER_URL,
@@ -65,66 +77,167 @@ public class MqttManager {
                 );
             }
 
-            MqttConnectOptions opciones =
-                    new MqttConnectOptions();
-
+            MqttConnectOptions opciones = new MqttConnectOptions();
             opciones.setAutomaticReconnect(true);
             opciones.setCleanSession(true);
 
-            mqttClient.connect(
-                    opciones,
-                    null,
-                    new IMqttActionListener() {
+            mqttClient.connect(opciones, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    System.out.println("MQTT: conectado al broker");
 
-                        @Override
-                        public void onSuccess(
-                                IMqttToken asyncActionToken
-                        ) {
-                            System.out.println(
-                                    "MQTT: conectado al broker"
-                            );
+                    notificarBrokerConectado();
+                    suscribirseATopics();
+                }
 
-                            if (conexionListener != null) {
-                                conexionListener.onConectado();
-                            }
-                        }
+                @Override
+                public void onFailure(
+                        IMqttToken asyncActionToken,
+                        Throwable exception
+                ) {
+                    System.out.println(
+                            "MQTT: error de conexión - " + exception.getMessage()
+                    );
 
-                        @Override
-                        public void onFailure(
-                                IMqttToken asyncActionToken,
-                                Throwable exception
-                        ) {
-                            System.out.println(
-                                    "MQTT: error de conexión - "
-                                            + exception.getMessage()
-                            );
-
-                            if (conexionListener != null) {
-                                conexionListener.onError(
-                                        exception.getMessage()
-                                );
-                            }
-                        }
-                    }
-            );
+                    notificarBrokerDesconectado();
+                }
+            });
 
         } catch (MqttException e) {
+            System.out.println("MQTT: error - " + e.getMessage());
+            notificarBrokerDesconectado();
+        }
+    }
 
+    private void suscribirseATopics() {
+        if (!estaConectado()) {
+            return;
+        }
+
+        suscribirse(TOPIC_CONEXION, this::procesarConexion);
+        suscribirse(TOPIC_ESTADO, this::procesarEstado);
+        suscribirse(TOPIC_SENSOR, this::procesarSensor);
+    }
+
+    private void suscribirse(
+            String topic,
+            IMqttMessageListener listener
+    ) {
+        try {
+            mqttClient.subscribe(topic, 0, listener);
+            System.out.println("MQTT: suscripto a " + topic);
+
+        } catch (MqttException e) {
             System.out.println(
-                    "MQTT: error al crear/conectar el cliente - "
+                    "MQTT: error al suscribirse a "
+                            + topic
+                            + " - "
                             + e.getMessage()
             );
+        }
+    }
 
-            if (conexionListener != null) {
-                conexionListener.onError(
-                        e.getMessage()
-                );
-            }
+    private void procesarConexion(
+            String topic,
+            MqttMessage message
+    ) {
+        String payload = new String(message.getPayload()).trim();
+
+        System.out.println("MQTT conexión: " + payload);
+
+        if ("ONLINE".equalsIgnoreCase(payload)) {
+            estacionConectada = true;
+            registrarComunicacion();
+            notificarEstacionConectada();
+        }
+    }
+
+    private void procesarEstado(
+            String topic,
+            MqttMessage message
+    ) {
+        String estado = new String(message.getPayload()).trim();
+
+        ultimoEstado = estado;
+        registrarComunicacion();
+
+        System.out.println("MQTT estado: " + estado);
+
+        notificarEstado(estado);
+    }
+
+    private void procesarSensor(
+            String topic,
+            MqttMessage message
+    ) {
+        String payload = new String(message.getPayload()).trim();
+
+        try {
+            int humedad = Integer.parseInt(payload);
+
+            ultimaHumedad = humedad;
+            registrarComunicacion();
+
+            System.out.println("MQTT humedad: " + humedad + "%");
+
+            notificarHumedad(humedad);
+
+        } catch (NumberFormatException e) {
+            System.out.println("MQTT: humedad inválida - " + payload);
+        }
+    }
+
+    private void registrarComunicacion() {
+        ultimaComunicacion = System.currentTimeMillis();
+    }
+
+    private synchronized void notificarBrokerConectado() {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onBrokerConectado();
+        }
+    }
+
+    private synchronized void notificarBrokerDesconectado() {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onBrokerDesconectado();
+        }
+    }
+
+    private synchronized void notificarEstacionConectada() {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onEstacionConectada();
+        }
+    }
+
+    private synchronized void notificarEstado(String estado) {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onEstadoRecibido(estado);
+        }
+    }
+
+    private synchronized void notificarHumedad(int humedad) {
+        for (MqttListener listener : new ArrayList<>(listeners)) {
+            listener.onHumedadRecibida(humedad);
         }
     }
 
     public boolean estaConectado() {
-        return mqttClient != null
-                && mqttClient.isConnected();
+        return mqttClient != null && mqttClient.isConnected();
+    }
+
+    public boolean estaEstacionConectada() {
+        return estacionConectada;
+    }
+
+    public String getUltimoEstado() {
+        return ultimoEstado;
+    }
+
+    public Integer getUltimaHumedad() {
+        return ultimaHumedad;
+    }
+
+    public long getUltimaComunicacion() {
+        return ultimaComunicacion;
     }
 }
