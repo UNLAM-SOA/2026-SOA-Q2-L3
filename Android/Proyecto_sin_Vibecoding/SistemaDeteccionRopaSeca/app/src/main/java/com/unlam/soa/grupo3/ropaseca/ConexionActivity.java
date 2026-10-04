@@ -9,24 +9,23 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class ConexionActivity extends AppCompatActivity {
 
+    private static final long INTERVALO_ACTUALIZACION_MS = 1000;
+
     private TextView tvBrokerCard;
     private TextView tvEstacionCard;
     private TextView tvUltimaComunicacion;
-
     private MqttManager mqttManager;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-
     private final Runnable actualizadorTiempo = new Runnable() {
         @Override
         public void run() {
             actualizarUltimaComunicacion();
-            handler.postDelayed(this, 1000);
+            handler.postDelayed(this, INTERVALO_ACTUALIZACION_MS);
         }
     };
 
     private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
-
         @Override
         public void onBrokerConectado() {
             runOnUiThread(() -> mostrarBrokerConectado());
@@ -39,26 +38,17 @@ public class ConexionActivity extends AppCompatActivity {
 
         @Override
         public void onEstacionConectada() {
-            runOnUiThread(() -> {
-                mostrarEstacionConectada();
-                actualizarUltimaComunicacion();
-            });
+            runOnUiThread(() -> actualizarEstacion(true));
         }
 
         @Override
         public void onEstacionDesconectada() {
-            runOnUiThread(() -> {
-                mostrarEstacionDesconectada();
-                actualizarUltimaComunicacion();
-            });
+            runOnUiThread(() -> actualizarEstacion(false));
         }
 
         @Override
         public void onEstadoRecibido(String estado) {
-            runOnUiThread(() -> {
-                mostrarEstacionConectada();
-                actualizarUltimaComunicacion();
-            });
+            runOnUiThread(() -> actualizarEstacion(true));
         }
 
         @Override
@@ -74,21 +64,17 @@ public class ConexionActivity extends AppCompatActivity {
         tvBrokerCard = findViewById(R.id.tvBrokerCard);
         tvEstacionCard = findViewById(R.id.tvEstacionCard);
         tvUltimaComunicacion = findViewById(R.id.tvUltimaComunicacion);
-
         findViewById(R.id.btnVolver).setOnClickListener(v -> finish());
 
         mqttManager = MqttManager.getInstance();
-
         actualizarPantalla();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-
         mqttManager.agregarListener(mqttListener);
         actualizarPantalla();
-
         handler.removeCallbacks(actualizadorTiempo);
         handler.post(actualizadorTiempo);
     }
@@ -96,7 +82,6 @@ public class ConexionActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-
         mqttManager.quitarListener(mqttListener);
         handler.removeCallbacks(actualizadorTiempo);
     }
@@ -107,54 +92,36 @@ public class ConexionActivity extends AppCompatActivity {
         } else {
             mostrarBrokerDesconectado();
         }
+        actualizarEstacion(mqttManager.estaEstacionConectada());
+    }
 
-        if (mqttManager.estaEstacionConectada()) {
-            mostrarEstacionConectada();
-        } else {
-            mostrarEstacionDesconectada();
-        }
-
+    private void actualizarEstacion(boolean conectada) {
+        tvEstacionCard.setText(conectada ? R.string.estacion_card_conectada : R.string.estacion_card_desconectada);
         actualizarUltimaComunicacion();
     }
 
     private void mostrarBrokerConectado() {
-        tvBrokerCard.setText("BROKER MQTT\n\n● Conectado");
+        tvBrokerCard.setText(R.string.broker_conectado);
     }
 
     private void mostrarBrokerDesconectado() {
-        tvBrokerCard.setText("BROKER MQTT\n\n● Desconectado");
-    }
-
-    private void mostrarEstacionConectada() {
-        tvEstacionCard.setText("ESTACIÓN DE SECADO\n\n● Conectada");
-    }
-
-    private void mostrarEstacionDesconectada() {
-        tvEstacionCard.setText("ESTACIÓN DE SECADO\n\n● Sin conexión");
+        tvBrokerCard.setText(R.string.broker_desconectado);
     }
 
     private void actualizarUltimaComunicacion() {
         long ultimoEstado = mqttManager.getUltimoEstadoRecibido();
-
         if (ultimoEstado == 0) {
-            tvUltimaComunicacion.setText("Sin comunicaciones registradas");
+            tvUltimaComunicacion.setText(R.string.sin_comunicaciones);
             return;
         }
 
         long segundos = (System.currentTimeMillis() - ultimoEstado) / 1000;
-
         if (segundos < 5) {
-            tvUltimaComunicacion.setText("Última comunicación: ahora");
+            tvUltimaComunicacion.setText(R.string.comunicacion_ahora);
         } else if (segundos < 60) {
-            tvUltimaComunicacion.setText(
-                    "Última comunicación: hace " + segundos + " segundos"
-            );
+            tvUltimaComunicacion.setText(getString(R.string.comunicacion_segundos, segundos));
         } else {
-            long minutos = segundos / 60;
-
-            tvUltimaComunicacion.setText(
-                    "Última comunicación: hace " + minutos + " min"
-            );
+            tvUltimaComunicacion.setText(getString(R.string.comunicacion_minutos, segundos / 60));
         }
     }
 }

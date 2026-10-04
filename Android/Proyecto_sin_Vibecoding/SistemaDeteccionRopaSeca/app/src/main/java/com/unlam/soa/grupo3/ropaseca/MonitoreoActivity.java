@@ -12,73 +12,60 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MonitoreoActivity extends AppCompatActivity {
 
+    private static final String ESTADO_ESPERA = "ESPERA";
+    private static final String ESTADO_MONITOREANDO = "MONITOREANDO_SECADO";
+    private static final String ESTADO_ROPA_SECA = "ROPA_SECA";
+    private static final String ESTADO_LLUVIA = "LLUVIA";
+    private static final long INTERVALO_ACTUALIZACION_MS = 1000;
+
     private TextView tvEstado;
     private TextView tvHumedad;
     private TextView tvProgreso;
     private TextView tvUltimaActualizacion;
     private TextView tvEstadoConexion;
-
     private TextView tvTituloMensajeEstado;
     private TextView tvMensajeEstado;
-
     private View bloqueDatosSecado;
     private View bloqueMensajeEstado;
-
     private ProgressBar progressSecado;
     private Button btnCiclo;
-
     private MqttManager mqttManager;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-
     private final Runnable actualizadorTiempo = new Runnable() {
         @Override
         public void run() {
             actualizarUltimaActualizacion();
-            handler.postDelayed(this, 1000);
+            handler.postDelayed(this, INTERVALO_ACTUALIZACION_MS);
         }
     };
 
     private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
-
         @Override
         public void onBrokerConectado() {
-            runOnUiThread(() -> {
-                actualizarEstadoConexion();
-                actualizarBoton();
-            });
+            runOnUiThread(() -> actualizarConexionYBoton());
         }
 
         @Override
         public void onBrokerDesconectado() {
-            runOnUiThread(() -> {
-                actualizarEstadoConexion();
-                actualizarBoton();
-            });
+            runOnUiThread(() -> actualizarConexionYBoton());
         }
 
         @Override
         public void onEstacionConectada() {
-            runOnUiThread(() -> {
-                actualizarEstadoConexion();
-                actualizarBoton();
-            });
+            runOnUiThread(() -> actualizarConexionYBoton());
         }
 
         @Override
         public void onEstacionDesconectada() {
-            runOnUiThread(() -> {
-                actualizarEstadoConexion();
-                actualizarBoton();
-            });
+            runOnUiThread(() -> actualizarConexionYBoton());
         }
 
         @Override
         public void onEstadoRecibido(String estado) {
             runOnUiThread(() -> {
                 actualizarEstado(estado);
-                actualizarEstadoConexion();
-                actualizarBoton();
+                actualizarConexionYBoton();
             });
         }
 
@@ -101,30 +88,23 @@ public class MonitoreoActivity extends AppCompatActivity {
         tvProgreso = findViewById(R.id.tvProgreso);
         tvUltimaActualizacion = findViewById(R.id.tvUltimaActualizacion);
         tvEstadoConexion = findViewById(R.id.tvEstadoConexion);
-
         tvTituloMensajeEstado = findViewById(R.id.tvTituloMensajeEstado);
         tvMensajeEstado = findViewById(R.id.tvMensajeEstado);
-
         bloqueDatosSecado = findViewById(R.id.bloqueDatosSecado);
         bloqueMensajeEstado = findViewById(R.id.bloqueMensajeEstado);
-
         progressSecado = findViewById(R.id.progressSecado);
         btnCiclo = findViewById(R.id.btnCiclo);
 
         findViewById(R.id.btnVolver).setOnClickListener(v -> finish());
-
         mqttManager = MqttManager.getInstance();
-
         cargarUltimosDatos();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-
         mqttManager.agregarListener(mqttListener);
         cargarUltimosDatos();
-
         handler.removeCallbacks(actualizadorTiempo);
         handler.post(actualizadorTiempo);
     }
@@ -132,7 +112,6 @@ public class MonitoreoActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-
         mqttManager.quitarListener(mqttListener);
         handler.removeCallbacks(actualizadorTiempo);
     }
@@ -152,135 +131,109 @@ public class MonitoreoActivity extends AppCompatActivity {
             actualizarHumedad(ultimaHumedad);
         }
 
-        actualizarEstadoConexion();
-        actualizarBoton();
+        actualizarConexionYBoton();
         actualizarUltimaActualizacion();
     }
 
     private void actualizarEstado(String estado) {
         switch (estado) {
-            case "ESPERA":
-                tvEstado.setText("ESPERA");
-                btnCiclo.setText("INICIAR CICLO");
-
+            case ESTADO_ESPERA:
+                tvEstado.setText(R.string.estado_espera);
+                btnCiclo.setText(R.string.iniciar_ciclo);
                 bloqueDatosSecado.setVisibility(View.GONE);
                 mostrarMensajeEspera();
                 break;
-
-            case "MONITOREANDO_SECADO":
-                tvEstado.setText("MONITOREANDO SECADO");
-                btnCiclo.setText("FINALIZAR CICLO");
-
+            case ESTADO_MONITOREANDO:
+                tvEstado.setText(R.string.estado_monitoreando);
+                btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 bloqueMensajeEstado.setVisibility(View.GONE);
                 break;
-
-            case "ROPA_SECA":
-                tvEstado.setText("ROPA SECA");
-                btnCiclo.setText("FINALIZAR CICLO");
-
+            case ESTADO_ROPA_SECA:
+                tvEstado.setText(R.string.estado_ropa_seca);
+                btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 mostrarMensajeRopaSeca();
                 break;
-
-            case "LLUVIA":
-                tvEstado.setText("LLUVIA DETECTADA");
-                btnCiclo.setText("FINALIZAR CICLO");
-
+            case ESTADO_LLUVIA:
+                tvEstado.setText(R.string.estado_lluvia);
+                btnCiclo.setText(R.string.finalizar_ciclo);
                 bloqueDatosSecado.setVisibility(View.VISIBLE);
                 mostrarMensajeLluvia();
                 break;
-
             default:
                 tvEstado.setText(estado);
-
                 bloqueDatosSecado.setVisibility(View.GONE);
                 bloqueMensajeEstado.setVisibility(View.GONE);
-                break;
         }
     }
 
     private void mostrarMensajeEspera() {
-        bloqueMensajeEstado.setVisibility(View.VISIBLE);
-        tvTituloMensajeEstado.setText("Todo listo para comenzar");
-        tvMensajeEstado.setText(
-                "Iniciá un ciclo cuando cuelgues la ropa para comenzar a monitorear el secado."
-        );
+        mostrarMensaje(R.string.espera_titulo, R.string.espera_mensaje);
     }
 
     private void mostrarMensajeRopaSeca() {
-        bloqueMensajeEstado.setVisibility(View.VISIBLE);
-        tvTituloMensajeEstado.setText("✓ ¡Tu ropa está seca!");
-        tvMensajeEstado.setText(
-                "Ya está lista para descolgar, doblar y guardar."
-        );
+        mostrarMensaje(R.string.ropa_seca_titulo, R.string.ropa_seca_mensaje);
     }
 
     private void mostrarMensajeLluvia() {
+        mostrarMensaje(R.string.lluvia_titulo, R.string.lluvia_mensaje);
+    }
+
+    private void mostrarMensaje(int titulo, int mensaje) {
         bloqueMensajeEstado.setVisibility(View.VISIBLE);
-        tvTituloMensajeEstado.setText("⚠ ¡Lluvia detectada!");
-        tvMensajeEstado.setText(
-                "Tu ropa puede mojarse. ¡Descolgala cuanto antes!"
-        );
+        tvTituloMensajeEstado.setText(titulo);
+        tvMensajeEstado.setText(mensaje);
     }
 
     private void actualizarHumedad(int humedad) {
         int humedadLimitada = Math.max(0, Math.min(100, humedad));
         int progreso = 100 - humedadLimitada;
 
-        tvHumedad.setText(humedadLimitada + " %");
-        tvProgreso.setText(progreso + " %");
+        tvHumedad.setText(getString(R.string.porcentaje, humedadLimitada));
+        tvProgreso.setText(getString(R.string.porcentaje, progreso));
         progressSecado.setProgress(progreso);
+    }
+
+    private void actualizarConexionYBoton() {
+        actualizarEstadoConexion();
+        actualizarBoton();
     }
 
     private void actualizarEstadoConexion() {
         if (!mqttManager.estaConectado()) {
-            tvEstadoConexion.setText("⚠ Sin conexión con el broker");
+            tvEstadoConexion.setText(R.string.sin_conexion_broker);
             tvEstadoConexion.setVisibility(View.VISIBLE);
-            return;
-        }
-
-        if (!mqttManager.estaEstacionConectada()) {
-            tvEstadoConexion.setText("⚠ Estación sin conexión");
+        } else if (!mqttManager.estaEstacionConectada()) {
+            tvEstadoConexion.setText(R.string.estacion_sin_conexion_alerta);
             tvEstadoConexion.setVisibility(View.VISIBLE);
-            return;
+        } else {
+            tvEstadoConexion.setVisibility(View.GONE);
         }
-
-        tvEstadoConexion.setVisibility(View.GONE);
     }
 
     private void actualizarBoton() {
-        boolean habilitado =
-                mqttManager.estaConectado()
-                        && mqttManager.estaEstacionConectada()
-                        && mqttManager.getUltimoEstado() != null;
-
+        boolean habilitado = mqttManager.estaConectado()
+                && mqttManager.estaEstacionConectada()
+                && mqttManager.getUltimoEstado() != null;
         btnCiclo.setEnabled(habilitado);
         btnCiclo.setAlpha(habilitado ? 1.0f : 0.5f);
     }
 
     private void actualizarUltimaActualizacion() {
         long ultimaLectura = mqttManager.getUltimaLecturaSensor();
-
         if (ultimaLectura == 0) {
-            tvUltimaActualizacion.setText("Esperando actualización...");
+            tvUltimaActualizacion.setText(R.string.esperando_actualizacion);
             return;
         }
 
         long segundos = (System.currentTimeMillis() - ultimaLectura) / 1000;
-
         if (segundos < 5) {
-            tvUltimaActualizacion.setText("Última actualización: ahora");
+            tvUltimaActualizacion.setText(R.string.actualizacion_ahora);
         } else if (segundos < 60) {
-            tvUltimaActualizacion.setText(
-                    "Última actualización: hace " + segundos + " segundos"
-            );
+            tvUltimaActualizacion.setText(getString(R.string.actualizacion_segundos, segundos));
         } else {
-            long minutos = segundos / 60;
-
-            tvUltimaActualizacion.setText(
-                    "Última actualización: hace " + minutos + " min"
-            );
+            tvUltimaActualizacion.setText(getString(R.string.actualizacion_minutos, segundos / 60));
         }
     }
 }

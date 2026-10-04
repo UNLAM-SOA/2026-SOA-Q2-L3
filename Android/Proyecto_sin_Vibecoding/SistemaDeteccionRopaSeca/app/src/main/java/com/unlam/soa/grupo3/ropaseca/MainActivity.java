@@ -13,10 +13,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvEstadoConexion;
 
     private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
-
         @Override
         public void onBrokerConectado() {
-            // El cartel del Main representa la estación, no el broker.
         }
 
         @Override
@@ -49,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         tvEstadoConexion = findViewById(R.id.tvEstadoConexion);
-
         Button btnMonitorear = findViewById(R.id.btnMonitorear);
         Button btnCondiciones = findViewById(R.id.btnCondiciones);
         Button btnConexion = findViewById(R.id.btnConexion);
@@ -57,20 +54,14 @@ public class MainActivity extends AppCompatActivity {
         mqttManager = MqttManager.getInstance();
         mqttManager.conectar();
 
-        btnMonitorear.setOnClickListener(v ->
-                abrirActivity(MonitoreoActivity.class));
-
-        btnCondiciones.setOnClickListener(v ->
-                abrirActivity(CondicionesActivity.class));
-
-        btnConexion.setOnClickListener(v ->
-                abrirActivity(ConexionActivity.class));
+        btnMonitorear.setOnClickListener(v -> abrirActivity(MonitoreoActivity.class));
+        btnCondiciones.setOnClickListener(v -> abrirActivity(CondicionesActivity.class));
+        btnConexion.setOnClickListener(v -> abrirActivity(ConexionActivity.class));
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-
         mqttManager.agregarListener(mqttListener);
         actualizarEstadoEstacion();
     }
@@ -78,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-
         mqttManager.quitarListener(mqttListener);
     }
 
@@ -91,15 +81,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void mostrarEstacionConectada() {
-        tvEstadoConexion.setText("●  Estación conectada");
+        tvEstadoConexion.setText(R.string.estacion_conectada);
     }
 
     private void mostrarEstacionDesconectada() {
-        tvEstadoConexion.setText("●  Estación sin conexión");
+        tvEstadoConexion.setText(R.string.estacion_sin_conexion);
     }
 
     private void abrirActivity(Class<?> activity) {
-        Intent intent = new Intent(this, activity);
-        startActivity(intent);
+        startActivity(new Intent(this, activity));
     }
 }

@@ -2,23 +2,27 @@ package com.unlam.soa.grupo3.ropaseca;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 public class MqttManager {
 
+    private static final String TAG = "MqttManager";
     private static final String BROKER_URL = "tcp://broker.emqx.io:1883";
-
     private static final String TOPIC_ESTADO = "unlam/soa/grupo3/lavadero/estado";
     private static final String TOPIC_SENSOR = "unlam/soa/grupo3/lavadero/sensor";
 
@@ -27,17 +31,15 @@ public class MqttManager {
 
     private static MqttManager instance;
 
-    private MqttAsyncClient mqttClient;
-
-    private boolean estacionConectada = false;
-    private String ultimoEstado = null;
-    private Integer ultimaHumedad = null;
-
-    private long ultimoEstadoRecibido = 0;
-    private long ultimaLecturaSensor = 0;
-
     private final List<MqttListener> listeners = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private MqttAsyncClient mqttClient;
+    private volatile boolean estacionConectada;
+    private volatile String ultimoEstado;
+    private volatile Integer ultimaHumedad;
+    private volatile long ultimoEstadoRecibido;
+    private volatile long ultimaLecturaSensor;
 
     private final Runnable verificadorConexion = new Runnable() {
         @Override
@@ -55,7 +57,6 @@ public class MqttManager {
         if (instance == null) {
             instance = new MqttManager();
         }
-
         return instance;
     }
 
@@ -86,8 +87,7 @@ public class MqttManager {
 
         try {
             if (mqttClient == null) {
-                String clientId = "android-grupo3-" + UUID.randomUUID();
-                mqttClient = new MqttAsyncClient(BROKER_URL, clientId, null);
+                crearCliente();
             }
 
             MqttConnectOptions opciones = new MqttConnectOptions();
@@ -97,30 +97,53 @@ public class MqttManager {
             mqttClient.connect(opciones, null, new IMqttActionListener() {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    System.out.println("MQTT: conectado al broker");
-
-                    notificarBrokerConectado();
-                    suscribirseATopics();
+                    Log.d(TAG, "Conectado al broker");
                 }
 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    System.out.println("MQTT: error de conexión - " + exception.getMessage());
+                    Log.e(TAG, "Error de conexión", exception);
                     notificarBrokerDesconectado();
                 }
             });
-
         } catch (MqttException e) {
-            System.out.println("MQTT: error - " + e.getMessage());
+            Log.e(TAG, "Error al conectar", e);
             notificarBrokerDesconectado();
         }
+    }
+
+    private void crearCliente() throws MqttException {
+        String clientId = "android-grupo3-" + UUID.randomUUID();
+        mqttClient = new MqttAsyncClient(BROKER_URL, clientId, null);
+        mqttClient.setCallback(new MqttCallbackExtended() {
+            @Override
+            public void connectComplete(boolean reconnect, String serverURI) {
+                Log.d(TAG, reconnect ? "Reconectado al broker" : "Conexión MQTT lista");
+                notificarBrokerConectado();
+                suscribirseATopics();
+            }
+
+            @Override
+            public void connectionLost(Throwable cause) {
+                Log.w(TAG, "Conexión con el broker perdida", cause);
+                marcarEstacionDesconectada();
+                notificarBrokerDesconectado();
+            }
+
+            @Override
+            public void messageArrived(String topic, MqttMessage message) {
+            }
+
+            @Override
+            public void deliveryComplete(IMqttDeliveryToken token) {
+            }
+        });
     }
 
     private void suscribirseATopics() {
         if (!estaConectado()) {
             return;
         }
-
         suscribirse(TOPIC_ESTADO, this::procesarEstado);
         suscribirse(TOPIC_SENSOR, this::procesarSensor);
     }
@@ -128,44 +151,33 @@ public class MqttManager {
     private void suscribirse(String topic, IMqttMessageListener listener) {
         try {
             mqttClient.subscribe(topic, 0, listener);
-            System.out.println("MQTT: suscripto a " + topic);
-
+            Log.d(TAG, "Suscripto a " + topic);
         } catch (MqttException e) {
-            System.out.println("MQTT: error al suscribirse a " + topic + " - " + e.getMessage());
+            Log.e(TAG, "Error al suscribirse a " + topic, e);
         }
     }
 
     private void procesarEstado(String topic, MqttMessage message) {
-        String estado = new String(message.getPayload()).trim();
-
+        String estado = new String(message.getPayload(), StandardCharsets.UTF_8).trim();
         ultimoEstado = estado;
         ultimoEstadoRecibido = System.currentTimeMillis();
-
-        System.out.println("MQTT estado: " + estado);
 
         if (!estacionConectada) {
             estacionConectada = true;
             notificarEstacionConectada();
         }
-
         notificarEstado(estado);
     }
 
     private void procesarSensor(String topic, MqttMessage message) {
-        String payload = new String(message.getPayload()).trim();
-
+        String payload = new String(message.getPayload(), StandardCharsets.UTF_8).trim();
         try {
             int humedad = Integer.parseInt(payload);
-
             ultimaHumedad = humedad;
             ultimaLecturaSensor = System.currentTimeMillis();
-
-            System.out.println("MQTT humedad: " + humedad + "%");
-
             notificarHumedad(humedad);
-
         } catch (NumberFormatException e) {
-            System.out.println("MQTT: humedad inválida - " + payload);
+            Log.w(TAG, "Humedad inválida: " + payload);
         }
     }
 
@@ -175,48 +187,54 @@ public class MqttManager {
         }
 
         long tiempoSinEstado = System.currentTimeMillis() - ultimoEstadoRecibido;
-
         if (tiempoSinEstado > TIMEOUT_ESTACION_MS) {
+            marcarEstacionDesconectada();
+        }
+    }
+
+    private void marcarEstacionDesconectada() {
+        if (estacionConectada) {
             estacionConectada = false;
-
-            System.out.println("MQTT: estación sin conexión");
-
             notificarEstacionDesconectada();
         }
     }
 
-    private synchronized void notificarBrokerConectado() {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private synchronized List<MqttListener> obtenerListeners() {
+        return new ArrayList<>(listeners);
+    }
+
+    private void notificarBrokerConectado() {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onBrokerConectado();
         }
     }
 
-    private synchronized void notificarBrokerDesconectado() {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private void notificarBrokerDesconectado() {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onBrokerDesconectado();
         }
     }
 
-    private synchronized void notificarEstacionConectada() {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private void notificarEstacionConectada() {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onEstacionConectada();
         }
     }
 
-    private synchronized void notificarEstacionDesconectada() {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private void notificarEstacionDesconectada() {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onEstacionDesconectada();
         }
     }
 
-    private synchronized void notificarEstado(String estado) {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private void notificarEstado(String estado) {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onEstadoRecibido(estado);
         }
     }
 
-    private synchronized void notificarHumedad(int humedad) {
-        for (MqttListener listener : new ArrayList<>(listeners)) {
+    private void notificarHumedad(int humedad) {
+        for (MqttListener listener : obtenerListeners()) {
             listener.onHumedadRecibida(humedad);
         }
     }

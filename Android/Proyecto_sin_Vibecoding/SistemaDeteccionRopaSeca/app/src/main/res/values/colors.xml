@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="background">#F5F8FC</color>
+    <color name="primary_text">#172033</color>
+    <color name="secondary_text">#667085</color>
+    <color name="card_background">#E8EEF7</color>
+    <color name="card_text">#344054</color>
+    <color name="body_text">#475467</color>
+    <color name="muted_text">#98A2B3</color>
+    <color name="divider">#D0D5DD</color>
+    <color name="accent">#6750A4</color>
+    <color name="white">#FFFFFF</color>
 </resources>

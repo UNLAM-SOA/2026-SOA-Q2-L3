@@ -4,7 +4,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F8FC"
+    android:background="@color/background"
     android:fillViewport="true">
 
     <LinearLayout
@@ -13,7 +13,6 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Encabezado -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="48dp"
@@ -25,7 +24,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="@android:color/transparent"
-                android:contentDescription="Volver"
+                android:contentDescription="@string/volver"
                 android:padding="12dp"
                 android:scaleType="center"
                 android:src="@drawable/ic_arrow_back" />
@@ -34,20 +33,19 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Monitoreo"
-                android:textColor="#172033"
+                android:text="@string/monitoreo_titulo"
+                android:textColor="@color/primary_text"
                 android:textSize="28sp"
                 android:textStyle="bold" />
 
         </LinearLayout>
 
-        <!-- Estado -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="ESTADO ACTUAL"
-            android:textColor="#667085"
+            android:text="@string/estado_actual"
+            android:textColor="@color/secondary_text"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -55,7 +53,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:background="#E8EEF7"
+            android:background="@color/card_background"
             android:orientation="vertical"
             android:padding="20dp">
 
@@ -63,20 +61,19 @@
                 android:id="@+id/tvEstado"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ESPERA"
-                android:textColor="#344054"
+                android:text="@string/estado_espera"
+                android:textColor="@color/card_text"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
         </LinearLayout>
 
-        <!-- Mensaje según el estado -->
         <LinearLayout
             android:id="@+id/bloqueMensajeEstado"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:background="#E8EEF7"
+            android:background="@color/card_background"
             android:orientation="vertical"
             android:padding="20dp">
 
@@ -84,8 +81,8 @@
                 android:id="@+id/tvTituloMensajeEstado"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Todo listo para comenzar"
-                android:textColor="#172033"
+                android:text="@string/espera_titulo"
+                android:textColor="@color/primary_text"
                 android:textSize="17sp"
                 android:textStyle="bold" />
 
@@ -94,13 +91,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Iniciá un ciclo cuando cuelgues la ropa para comenzar a monitorear el secado."
-                android:textColor="#667085"
+                android:text="@string/espera_mensaje"
+                android:textColor="@color/secondary_text"
                 android:textSize="14sp" />
 
         </LinearLayout>
 
-        <!-- Datos del ciclo de secado -->
         <LinearLayout
             android:id="@+id/bloqueDatosSecado"
             android:layout_width="match_parent"
@@ -108,13 +104,12 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <!-- Humedad -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
-                android:text="NIVEL DE HUMEDAD"
-                android:textColor="#667085"
+                android:text="@string/nivel_humedad"
+                android:textColor="@color/secondary_text"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -122,7 +117,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:background="#E8EEF7"
+                android:background="@color/card_background"
                 android:orientation="vertical"
                 android:padding="20dp">
 
@@ -130,8 +125,8 @@
                     android:id="@+id/tvHumedad"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="-- %"
-                    android:textColor="#172033"
+                    android:text="@string/porcentaje_vacio"
+                    android:textColor="@color/primary_text"
                     android:textSize="32sp"
                     android:textStyle="bold" />
 
@@ -139,19 +134,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="Humedad detectada en la ropa"
-                    android:textColor="#667085"
+                    android:text="@string/humedad_descripcion"
+                    android:textColor="@color/secondary_text"
                     android:textSize="14sp" />
 
             </LinearLayout>
 
-            <!-- Progreso -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="PROGRESO DE SECADO"
-                android:textColor="#667085"
+                android:text="@string/progreso_secado"
+                android:textColor="@color/secondary_text"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -163,8 +157,8 @@
                 android:layout_marginTop="12dp"
                 android:max="100"
                 android:progress="0"
-                android:progressBackgroundTint="#D0D5DD"
-                android:progressTint="#6750A4" />
+                android:progressBackgroundTint="@color/divider"
+                android:progressTint="@color/accent" />
 
             <TextView
                 android:id="@+id/tvProgreso"
@@ -172,45 +166,41 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
                 android:layout_marginTop="6dp"
-                android:text="0 %"
-                android:textColor="#475467"
+                android:text="@string/porcentaje_vacio"
+                android:textColor="@color/body_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <!-- Última actualización -->
             <TextView
                 android:id="@+id/tvUltimaActualizacion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Esperando actualización..."
-                android:textColor="#98A2B3"
+                android:text="@string/esperando_actualizacion"
+                android:textColor="@color/muted_text"
                 android:textSize="13sp" />
 
         </LinearLayout>
 
-        <!-- Aviso de problemas de conexión -->
         <TextView
             android:id="@+id/tvEstadoConexion"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:background="#E8EEF7"
+            android:background="@color/card_background"
             android:padding="14dp"
-            android:text=""
-            android:textColor="#475467"
+            android:textColor="@color/body_text"
             android:textSize="14sp"
             android:visibility="gone" />
 
-        <!-- Botón principal -->
         <Button
             android:id="@+id/btnCiclo"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="24dp"
-            android:backgroundTint="#6750A4"
-            android:text="INICIAR CICLO"
-            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/accent"
+            android:text="@string/iniciar_ciclo"
+            android:textColor="@color/white"
             android:textSize="15sp"
             android:textStyle="bold" />
 

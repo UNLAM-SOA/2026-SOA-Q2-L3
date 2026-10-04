@@ -1,3 +1,65 @@
 <resources>
-    <string name="app_name">SistemaDeteccionRopaSeca</string>
+    <string name="app_name">Sistema de detección de ropa seca</string>
+    <string name="volver">Volver</string>
+
+    <string name="main_titulo">Secado de ropa</string>
+    <string name="main_subtitulo">Control y monitoreo de tu estación</string>
+    <string name="estacion_conectada">●  Estación conectada</string>
+    <string name="estacion_sin_conexion">●  Estación sin conexión</string>
+    <string name="monitorear">MONITOREAR</string>
+    <string name="condiciones_de_secado">CONDICIONES DE SECADO</string>
+    <string name="conexion">CONEXIÓN</string>
+    <string name="main_pie">Sistema inteligente de secado</string>
+
+    <string name="monitoreo_titulo">Monitoreo</string>
+    <string name="estado_actual">ESTADO ACTUAL</string>
+    <string name="estado_espera">ESPERA</string>
+    <string name="estado_monitoreando">MONITOREANDO SECADO</string>
+    <string name="estado_ropa_seca">ROPA SECA</string>
+    <string name="estado_lluvia">LLUVIA DETECTADA</string>
+    <string name="espera_titulo">Todo listo para comenzar</string>
+    <string name="espera_mensaje">Iniciá un ciclo cuando cuelgues la ropa para comenzar a monitorear el secado.</string>
+    <string name="ropa_seca_titulo">✓ ¡Tu ropa está seca!</string>
+    <string name="ropa_seca_mensaje">Ya está lista para descolgar, doblar y guardar.</string>
+    <string name="lluvia_titulo">⚠ ¡Lluvia detectada!</string>
+    <string name="lluvia_mensaje">Tu ropa puede mojarse. ¡Descolgala cuanto antes!</string>
+    <string name="nivel_humedad">NIVEL DE HUMEDAD</string>
+    <string name="humedad_descripcion">Humedad detectada en la ropa</string>
+    <string name="progreso_secado">PROGRESO DE SECADO</string>
+    <string name="porcentaje">%1$d %%</string>
+    <string name="porcentaje_vacio" formatted="false">-- %</string>
+    <string name="iniciar_ciclo">INICIAR CICLO</string>
+    <string name="finalizar_ciclo">FINALIZAR CICLO</string>
+    <string name="esperando_actualizacion">Esperando actualización...</string>
+    <string name="actualizacion_ahora">Última actualización: ahora</string>
+    <string name="actualizacion_segundos">Última actualización: hace %1$d segundos</string>
+    <string name="actualizacion_minutos">Última actualización: hace %1$d min</string>
+    <string name="sin_conexion_broker">⚠ Sin conexión con el broker</string>
+    <string name="estacion_sin_conexion_alerta">⚠ Estación sin conexión</string>
+
+    <string name="condiciones_titulo">Condiciones</string>
+    <string name="condiciones_subtitulo">Evaluá la iluminación del ambiente</string>
+    <string name="condiciones_descripcion">☀  Acercá el teléfono al lugar donde se encuentra la ropa para medir la luz ambiente.</string>
+    <string name="iluminacion_actual">ILUMINACIÓN ACTUAL</string>
+    <string name="lux_vacio">-- lux</string>
+    <string name="esperando_medicion">Esperando medición...</string>
+    <string name="sensor_no_disponible">No disponible</string>
+    <string name="sin_sensor_luz">Este dispositivo no tiene sensor de luz</string>
+    <string name="iluminacion_muy_baja">☁  MUY POCA ILUMINACIÓN</string>
+    <string name="iluminacion_baja">☁  POCA ILUMINACIÓN</string>
+    <string name="iluminacion_buena">☀  BUENA ILUMINACIÓN</string>
+    <string name="iluminacion_excelente">☀  EXCELENTE ILUMINACIÓN</string>
+
+    <string name="conexion_titulo">Conexión</string>
+    <string name="conexion_subtitulo">Estado de comunicación del sistema</string>
+    <string name="broker_conectado">BROKER MQTT\n\n● Conectado</string>
+    <string name="broker_desconectado">BROKER MQTT\n\n● Desconectado</string>
+    <string name="estacion_card_conectada">ESTACIÓN DE SECADO\n\n● Conectada</string>
+    <string name="estacion_card_desconectada">ESTACIÓN DE SECADO\n\n● Sin conexión</string>
+    <string name="ultima_comunicacion">Última comunicación</string>
+    <string name="sin_comunicaciones">Sin comunicaciones registradas</string>
+    <string name="comunicacion_ahora">Última comunicación: ahora</string>
+    <string name="comunicacion_segundos">Última comunicación: hace %1$d segundos</string>
+    <string name="comunicacion_minutos">Última comunicación: hace %1$d min</string>
+    <string name="broker_info">broker.emqx.io  •  Puerto 1883</string>
 </resources>
