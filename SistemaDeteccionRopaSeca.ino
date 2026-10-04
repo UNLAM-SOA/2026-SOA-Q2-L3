@@ -10,7 +10,6 @@ constexpr uint8_t PIN_BROCHE_1 = 35;
 constexpr uint8_t PIN_BROCHE_2 = 34;
 constexpr uint8_t PIN_LLUVIA = 32;
 constexpr uint8_t PIN_BOTON_CICLO = 26;
-
 constexpr uint8_t PIN_LED = 18;
 constexpr uint8_t PIN_BUZZER = 25;
 
@@ -49,14 +48,13 @@ constexpr int PWM_MAXIMO = 255;
 constexpr unsigned long PERIODO_LECTURA_MS = 50;
 constexpr unsigned long PERIODO_LOG_MS = 1000;
 constexpr unsigned long ANTIRREBOTE_BOTON_MS = 40;
-
 constexpr unsigned long PERIODO_BUZZER_SECA_MS = 1200;
 constexpr unsigned long PERIODO_BUZZER_LLUVIA_MS = 300;
-
 constexpr unsigned long PERIODO_RECONEXION_MQTT_MS = 5000;
+constexpr unsigned long PERIODO_PUBLICACION_SENSOR_MS = 2000;
 
 // ======================================================
-// BUZZER
+// FRECUENCIAS BUZZER
 // ======================================================
 
 constexpr unsigned int FRECUENCIA_BUZZER_SECA_HZ = 900;
@@ -66,8 +64,8 @@ constexpr unsigned int FRECUENCIA_BUZZER_LLUVIA_HZ = 1600;
 // WIFI
 // ======================================================
 
-constexpr char WIFI_SSID[] = "Wokwi-GUEST";
-constexpr char WIFI_PASSWORD[] = "";
+constexpr char WIFI_SSID[] = "TU_WIFI";
+constexpr char WIFI_PASSWORD[] = "TU_PASSWORD";
 
 // ======================================================
 // MQTT
@@ -76,17 +74,14 @@ constexpr char WIFI_PASSWORD[] = "";
 constexpr char MQTT_BROKER[] = "test.mosquitto.org";
 constexpr uint16_t MQTT_PUERTO = 1883;
 
-constexpr char MQTT_CLIENT_ID[] =
-  "unlam-soa-ropa-seca-esp32-2026";
+constexpr char MQTT_CLIENT_ID[] = "esp32-lavadero-grupo5";
 
-constexpr char MQTT_TOPIC_ESTADO[] =
-  "unlam/soa/ropa-seca-2026/estado";
+constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo5/lavadero/comando";
+constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo5/lavadero/estado";
+constexpr char MQTT_TOPIC_SENSOR[] = "unlam/soa/grupo5/lavadero/sensor";
 
-constexpr char MQTT_MENSAJE_ROPA_SECA[] =
-  "ROPA_SECA";
-
-constexpr char MQTT_MENSAJE_LLUVIA[] =
-  "LLUVIA";
+constexpr char MQTT_COMANDO_INICIAR[] = "INICIAR";
+constexpr char MQTT_COMANDO_FINALIZAR[] = "FINALIZAR";
 
 // ======================================================
 // FREERTOS
@@ -94,9 +89,8 @@ constexpr char MQTT_MENSAJE_LLUVIA[] =
 
 constexpr uint16_t TAMANIO_PILA_SENSORES = 2048;
 constexpr uint16_t TAMANIO_PILA_FSM = 6144;
-
 constexpr UBaseType_t PRIORIDAD_TAREA = 1;
-constexpr uint8_t CANTIDAD_MENSAJES_COLA = 10;
+constexpr uint8_t CANTIDAD_EVENTOS_COLA = 10;
 
 // ======================================================
 // ESTADOS
@@ -115,6 +109,8 @@ enum class Estado {
 
 enum class Evento {
   BOTON_CICLO,
+  COMANDO_INICIAR,
+  COMANDO_FINALIZAR,
   ROPA_SECA,
   ROPA_HUMEDA,
   LLUVIA_DETECTADA
@@ -138,38 +134,48 @@ struct LecturasSensores {
   bool botonCicloPulsado;
 };
 
-// ======================================================
-// MENSAJE ENTRE TAREAS
-// ======================================================
-
-struct MensajeFSM {
-  Evento evento;
-  int progresoSecadoPct;
-};
-
-// ======================================================
-// VARIABLES
-// ======================================================
-
 LecturasSensores sensores;
 
-Estado estadoActual =
-  Estado::ESPERA;
+// ======================================================
+// ESTADO
+// ======================================================
 
-QueueHandle_t colaFSM;
+Estado estadoActual = Estado::ESPERA;
+
+// ======================================================
+// FREERTOS
+// ======================================================
+
+QueueHandle_t colaEventos;
+
+// ======================================================
+// WIFI / MQTT
+// ======================================================
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 unsigned long ultimoIntentoMQTTMs = 0;
+unsigned long ultimaPublicacionSensorMs = 0;
+
+// ======================================================
+// TEMPORIZADORES
+// ======================================================
+
 unsigned long ultimoLogMs = 0;
 unsigned long ultimoCambioBuzzerMs = 0;
-unsigned long ultimoCambioBotonMs = 0;
 
-bool wifiConectadoAnteriormente = false;
+// ======================================================
+// BOTON
+// ======================================================
 
 bool ultimaLecturaBoton = HIGH;
 bool estadoEstableBoton = HIGH;
+unsigned long ultimoCambioBotonMs = 0;
+
+// ======================================================
+// BUZZER
+// ======================================================
 
 bool buzzerEncendido = false;
 
@@ -181,56 +187,32 @@ void tareaSensores(void *parametros);
 void tareaFSM(void *parametros);
 
 void iniciarWiFi();
-void actualizarWiFi();
 void actualizarMQTT();
-
-void publicarEstadoMQTT(
-  const char *mensaje
-);
+void recibirMensajeMQTT(char *topic, byte *payload, unsigned int length);
+void publicarEstadoMQTT();
+void actualizarPublicacionSensorMQTT();
+void publicarSensorMQTT();
 
 void leerSensores();
 void leerBoton();
 
-int calcularHumedad(
-  int lecturaADC
-);
-
-int calcularProgresoSecado(
-  int humedadGeneral
-);
+int calcularHumedad(int lecturaADC);
+int calcularProgresoSecado(int humedadGeneral);
 
 bool todasLasPrendasSecas();
 
 Evento generarEvento();
 
-void ejecutarFSM(
-  const MensajeFSM &mensaje
-);
+void ejecutarFSM(Evento evento);
+void cambiarEstado(Estado nuevoEstado);
 
-void cambiarEstado(
-  Estado nuevoEstado
-);
-
-void actualizarLedSecado(
-  int progresoSecadoPct
-);
-
+void actualizarLedSecado();
 void encenderLedSeco();
 void apagarLed();
 
-void iniciarBuzzer(
-  unsigned int frecuencia
-);
-
-void actualizarBuzzer(
-  unsigned long periodo,
-  unsigned int frecuencia
-);
-
-void encenderBuzzer(
-  unsigned int frecuencia
-);
-
+void iniciarBuzzer(unsigned int frecuencia);
+void actualizarBuzzer(unsigned long periodo, unsigned int frecuencia);
+void encenderBuzzer(unsigned int frecuencia);
 void apagarBuzzer();
 void apagarActuadores();
 
@@ -239,9 +221,7 @@ void notificarLluvia();
 
 void mostrarLecturas();
 
-const char *nombreEstado(
-  Estado estado
-);
+const char *nombreEstado(Estado estado);
 
 // ======================================================
 // SETUP
@@ -254,48 +234,27 @@ void setup()
   pinMode(PIN_BROCHE_1, INPUT);
   pinMode(PIN_BROCHE_2, INPUT);
   pinMode(PIN_LLUVIA, INPUT);
-
-  pinMode(
-    PIN_BOTON_CICLO,
-    INPUT_PULLUP
-  );
-
+  pinMode(PIN_BOTON_CICLO, INPUT_PULLUP);
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
 
   apagarActuadores();
 
   Serial.println();
-  Serial.println(
-    "======================================"
-  );
-  Serial.println(
-    " SISTEMA DE DETECCION DE ROPA SECA"
-  );
-  Serial.println(
-    "======================================"
-  );
-  Serial.println(
-    "[FSM] Estado inicial: ESPERA"
-  );
+  Serial.println("======================================");
+  Serial.println(" SISTEMA DE DETECCION DE ROPA SECA");
+  Serial.println("======================================");
+  Serial.println("[FSM] Estado inicial: ESPERA");
 
   iniciarWiFi();
 
-  mqttClient.setServer(
-    MQTT_BROKER,
-    MQTT_PUERTO
-  );
+  mqttClient.setServer(MQTT_BROKER, MQTT_PUERTO);
+  mqttClient.setCallback(recibirMensajeMQTT);
 
-  colaFSM = xQueueCreate(
-    CANTIDAD_MENSAJES_COLA,
-    sizeof(MensajeFSM)
-  );
+  colaEventos = xQueueCreate(CANTIDAD_EVENTOS_COLA, sizeof(Evento));
 
-  if (colaFSM == nullptr) {
-    Serial.println(
-      "[ERROR] No se pudo crear la cola."
-    );
-
+  if (colaEventos == nullptr) {
+    Serial.println("[ERROR] No se pudo crear la cola.");
     return;
   }
 
@@ -332,48 +291,9 @@ void loop()
 
 void iniciarWiFi()
 {
-  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  WiFi.begin(
-    WIFI_SSID,
-    WIFI_PASSWORD,
-    6
-  );
-
-  Serial.println(
-    "[WIFI] Iniciando conexion..."
-  );
-}
-
-void actualizarWiFi()
-{
-  bool conectado =
-    WiFi.status() == WL_CONNECTED;
-
-  if (
-    conectado
-    && !wifiConectadoAnteriormente
-  ) {
-    Serial.print(
-      "[WIFI] Conectado. IP: "
-    );
-
-    Serial.println(
-      WiFi.localIP()
-    );
-  }
-
-  if (
-    !conectado
-    && wifiConectadoAnteriormente
-  ) {
-    Serial.println(
-      "[WIFI] Conexion perdida."
-    );
-  }
-
-  wifiConectadoAnteriormente =
-    conectado;
+  Serial.println("[WIFI] Iniciando conexion...");
 }
 
 // ======================================================
@@ -382,134 +302,160 @@ void actualizarWiFi()
 
 void actualizarMQTT()
 {
-  if (
-    WiFi.status()
-    != WL_CONNECTED
-  ) {
+  if (WiFi.status() != WL_CONNECTED) {
     return;
   }
 
-  if (
-    mqttClient.connected()
-  ) {
+  if (mqttClient.connected()) {
     mqttClient.loop();
     return;
   }
 
-  unsigned long ahora =
-    millis();
+  unsigned long ahora = millis();
 
-  if (
-    ahora - ultimoIntentoMQTTMs
-    < PERIODO_RECONEXION_MQTT_MS
-  ) {
+  if (ahora - ultimoIntentoMQTTMs < PERIODO_RECONEXION_MQTT_MS) {
     return;
   }
 
-  ultimoIntentoMQTTMs =
-    ahora;
+  ultimoIntentoMQTTMs = ahora;
 
-  Serial.println(
-    "[MQTT] Intentando conectar..."
-  );
+  Serial.println("[MQTT] Intentando conectar...");
 
-  if (
-    mqttClient.connect(
-      MQTT_CLIENT_ID
-    )
-  ) {
-    Serial.println(
-      "[MQTT] Conectado al broker."
-    );
+  if (mqttClient.connect(MQTT_CLIENT_ID)) {
+    Serial.println("[MQTT] Conectado al broker.");
 
-    return;
+    if (mqttClient.subscribe(MQTT_TOPIC_COMANDO)) {
+      Serial.println("[MQTT] Suscripto al topic de comandos.");
+    } else {
+      Serial.println("[MQTT] No se pudo suscribir al topic de comandos.");
+    }
+  } else {
+    Serial.println("[MQTT] No se pudo conectar.");
   }
-
-  Serial.print(
-    "[MQTT] Error. Estado: "
-  );
-
-  Serial.println(
-    mqttClient.state()
-  );
 }
 
-void publicarEstadoMQTT(
-  const char *mensaje
-)
+// ======================================================
+// RECIBIR MQTT
+// ======================================================
+
+void recibirMensajeMQTT(char *topic, byte *payload, unsigned int length)
 {
-  if (
-    !mqttClient.connected()
-  ) {
-    Serial.println(
-      "[MQTT] Mensaje no enviado: sin conexion."
-    );
-
+  if (strcmp(topic, MQTT_TOPIC_COMANDO) != 0) {
     return;
   }
 
-  if (
-    !mqttClient.publish(
-      MQTT_TOPIC_ESTADO,
-      mensaje
-    )
-  ) {
-    Serial.println(
-      "[MQTT] Error al publicar."
-    );
+  String comando;
 
+  for (unsigned int i = 0; i < length; i++) {
+    comando += static_cast<char>(payload[i]);
+  }
+
+  comando.trim();
+
+  Serial.print("[MQTT] Comando recibido: ");
+  Serial.println(comando);
+
+  Evento evento;
+
+  if (comando == MQTT_COMANDO_INICIAR) {
+    evento = Evento::COMANDO_INICIAR;
+  } else if (comando == MQTT_COMANDO_FINALIZAR) {
+    evento = Evento::COMANDO_FINALIZAR;
+  } else {
+    Serial.println("[MQTT] Comando desconocido.");
     return;
   }
 
-  Serial.print(
-    "[MQTT] Publicado: "
+  if (xQueueSend(colaEventos, &evento, 0) != pdTRUE) {
+    Serial.println("[MQTT] No se pudo agregar el comando a la cola.");
+  }
+}
+
+// ======================================================
+// PUBLICAR ESTADO MQTT
+// ======================================================
+
+void publicarEstadoMQTT()
+{
+  if (!mqttClient.connected()) {
+    Serial.println("[MQTT] Estado no enviado: sin conexion.");
+    return;
+  }
+
+  const char *mensaje = nombreEstado(estadoActual);
+
+  if (!mqttClient.publish(MQTT_TOPIC_ESTADO, mensaje)) {
+    Serial.println("[MQTT] Error al publicar estado.");
+    return;
+  }
+
+  Serial.print("[MQTT] Estado publicado: ");
+  Serial.println(mensaje);
+}
+
+// ======================================================
+// PUBLICAR SENSOR MQTT
+// ======================================================
+
+void actualizarPublicacionSensorMQTT()
+{
+  if (estadoActual == Estado::ESPERA || !mqttClient.connected()) {
+    return;
+  }
+
+  unsigned long ahora = millis();
+
+  if (ahora - ultimaPublicacionSensorMs < PERIODO_PUBLICACION_SENSOR_MS) {
+    return;
+  }
+
+  ultimaPublicacionSensorMs = ahora;
+
+  publicarSensorMQTT();
+}
+
+void publicarSensorMQTT()
+{
+  char mensaje[16];
+
+  snprintf(
+    mensaje,
+    sizeof(mensaje),
+    "%d",
+    sensores.humedadGeneralPct
   );
 
-  Serial.println(
-    mensaje
-  );
+  if (!mqttClient.publish(MQTT_TOPIC_SENSOR, mensaje)) {
+    Serial.println("[MQTT] Error al publicar humedad.");
+    return;
+  }
+
+  Serial.print("[MQTT] Humedad publicada: ");
+  Serial.print(mensaje);
+  Serial.println("%");
 }
 
 // ======================================================
 // TAREA SENSORES
 // ======================================================
 
-void tareaSensores(
-  void *parametros
-)
+void tareaSensores(void *parametros)
 {
   while (true) {
     leerSensores();
 
-    MensajeFSM mensaje = {
-      generarEvento(),
-      sensores.progresoSecadoPct
-    };
+    Evento evento = generarEvento();
 
-    xQueueSend(
-      colaFSM,
-      &mensaje,
-      portMAX_DELAY
-    );
+    xQueueSend(colaEventos, &evento, portMAX_DELAY);
 
-    unsigned long ahora =
-      millis();
+    unsigned long ahora = millis();
 
-    if (
-      ahora - ultimoLogMs
-      >= PERIODO_LOG_MS
-    ) {
-      ultimoLogMs =
-        ahora;
-
+    if (ahora - ultimoLogMs >= PERIODO_LOG_MS) {
+      ultimoLogMs = ahora;
       mostrarLecturas();
     }
 
-    vTaskDelay(
-      pdMS_TO_TICKS(
-        PERIODO_LECTURA_MS
-      )
-    );
+    vTaskDelay(pdMS_TO_TICKS(PERIODO_LECTURA_MS));
   }
 }
 
@@ -517,28 +463,20 @@ void tareaSensores(
 // TAREA FSM
 // ======================================================
 
-void tareaFSM(
-  void *parametros
-)
+void tareaFSM(void *parametros)
 {
-  MensajeFSM mensaje;
+  Evento evento;
 
   while (true) {
-    actualizarWiFi();
     actualizarMQTT();
+    actualizarPublicacionSensorMQTT();
 
-    if (
-      xQueueReceive(
-        colaFSM,
-        &mensaje,
-        pdMS_TO_TICKS(
-          PERIODO_LECTURA_MS
-        )
-      )
-    ) {
-      ejecutarFSM(
-        mensaje
-      );
+    if (xQueueReceive(
+          colaEventos,
+          &evento,
+          pdMS_TO_TICKS(PERIODO_LECTURA_MS)
+        )) {
+      ejecutarFSM(evento);
     }
   }
 }
@@ -549,39 +487,24 @@ void tareaFSM(
 
 void leerSensores()
 {
-  sensores.adcPrenda1 =
-    analogRead(PIN_BROCHE_1);
+  sensores.adcPrenda1 = analogRead(PIN_BROCHE_1);
+  sensores.adcPrenda2 = analogRead(PIN_BROCHE_2);
 
-  sensores.adcPrenda2 =
-    analogRead(PIN_BROCHE_2);
+  sensores.humedadPrenda1Pct = calcularHumedad(sensores.adcPrenda1);
+  sensores.humedadPrenda2Pct = calcularHumedad(sensores.adcPrenda2);
 
-  sensores.humedadPrenda1Pct =
-    calcularHumedad(
-      sensores.adcPrenda1
-    );
+  sensores.humedadGeneralPct = max(
+    sensores.humedadPrenda1Pct,
+    sensores.humedadPrenda2Pct
+  );
 
-  sensores.humedadPrenda2Pct =
-    calcularHumedad(
-      sensores.adcPrenda2
-    );
+  sensores.progresoSecadoPct = calcularProgresoSecado(
+    sensores.humedadGeneralPct
+  );
 
-  sensores.humedadGeneralPct =
-    max(
-      sensores.humedadPrenda1Pct,
-      sensores.humedadPrenda2Pct
-    );
+  sensores.adcLluvia = analogRead(PIN_LLUVIA);
 
-  sensores.progresoSecadoPct =
-    calcularProgresoSecado(
-      sensores.humedadGeneralPct
-    );
-
-  sensores.adcLluvia =
-    analogRead(PIN_LLUVIA);
-
-  sensores.lluvia =
-    sensores.adcLluvia
-      >= UMBRAL_LLUVIA_ADC;
+  sensores.lluvia = sensores.adcLluvia >= UMBRAL_LLUVIA_ADC;
 
   leerBoton();
 }
@@ -592,58 +515,35 @@ void leerSensores()
 
 void leerBoton()
 {
-  sensores.botonCicloPulsado =
-    false;
+  sensores.botonCicloPulsado = false;
 
-  bool lecturaActual =
-    digitalRead(
-      PIN_BOTON_CICLO
-    );
+  bool lecturaActual = digitalRead(PIN_BOTON_CICLO);
 
-  if (
-    lecturaActual
-    != ultimaLecturaBoton
-  ) {
-    ultimoCambioBotonMs =
-      millis();
-
-    ultimaLecturaBoton =
-      lecturaActual;
+  if (lecturaActual != ultimaLecturaBoton) {
+    ultimoCambioBotonMs = millis();
+    ultimaLecturaBoton = lecturaActual;
   }
 
-  if (
-    millis() - ultimoCambioBotonMs
-    < ANTIRREBOTE_BOTON_MS
-  ) {
+  if (millis() - ultimoCambioBotonMs < ANTIRREBOTE_BOTON_MS) {
     return;
   }
 
-  if (
-    lecturaActual
-    == estadoEstableBoton
-  ) {
+  if (lecturaActual == estadoEstableBoton) {
     return;
   }
 
-  estadoEstableBoton =
-    lecturaActual;
+  estadoEstableBoton = lecturaActual;
 
-  if (
-    estadoEstableBoton
-    == LOW
-  ) {
-    sensores.botonCicloPulsado =
-      true;
+  if (estadoEstableBoton == LOW) {
+    sensores.botonCicloPulsado = true;
   }
 }
 
 // ======================================================
-// HUMEDAD
+// CALCULAR HUMEDAD
 // ======================================================
 
-int calcularHumedad(
-  int lecturaADC
-)
+int calcularHumedad(int lecturaADC)
 {
   int humedad = map(
     lecturaADC,
@@ -661,12 +561,10 @@ int calcularHumedad(
 }
 
 // ======================================================
-// PROGRESO SECADO
+// CALCULAR PROGRESO SECADO
 // ======================================================
 
-int calcularProgresoSecado(
-  int humedadGeneral
-)
+int calcularProgresoSecado(int humedadGeneral)
 {
   int progreso = map(
     humedadGeneral,
@@ -689,40 +587,27 @@ int calcularProgresoSecado(
 
 bool todasLasPrendasSecas()
 {
-  bool prenda1Seca =
-    sensores.humedadPrenda1Pct
-      <= UMBRAL_SECO_PCT;
+  bool prenda1Seca = sensores.humedadPrenda1Pct <= UMBRAL_SECO_PCT;
+  bool prenda2Seca = sensores.humedadPrenda2Pct <= UMBRAL_SECO_PCT;
 
-  bool prenda2Seca =
-    sensores.humedadPrenda2Pct
-      <= UMBRAL_SECO_PCT;
-
-  return
-    prenda1Seca
-    && prenda2Seca;
+  return prenda1Seca && prenda2Seca;
 }
 
 // ======================================================
-// EVENTOS
+// GENERACION DE EVENTOS
 // ======================================================
 
 Evento generarEvento()
 {
-  if (
-    sensores.botonCicloPulsado
-  ) {
+  if (sensores.botonCicloPulsado) {
     return Evento::BOTON_CICLO;
   }
 
-  if (
-    sensores.lluvia
-  ) {
+  if (sensores.lluvia) {
     return Evento::LLUVIA_DETECTADA;
   }
 
-  if (
-    todasLasPrendasSecas()
-  ) {
+  if (todasLasPrendasSecas()) {
     return Evento::ROPA_SECA;
   }
 
@@ -733,16 +618,8 @@ Evento generarEvento()
 // MAQUINA DE ESTADOS
 // ======================================================
 
-void ejecutarFSM(
-  const MensajeFSM &mensaje
-)
+void ejecutarFSM(Evento evento)
 {
-  Evento evento =
-    mensaje.evento;
-
-  int progreso =
-    mensaje.progresoSecadoPct;
-
   switch (estadoActual) {
 
     case Estado::ESPERA:
@@ -750,20 +627,14 @@ void ejecutarFSM(
       switch (evento) {
 
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_INICIAR:
 
-          actualizarLedSecado(
-            progreso
-          );
-
+          actualizarLedSecado();
           apagarBuzzer();
 
-          Serial.println(
-            "[INFO] Monitoreo iniciado."
-          );
+          Serial.println("[INFO] Monitoreo iniciado.");
 
-          cambiarEstado(
-            Estado::MONITOREANDO_SECADO
-          );
+          cambiarEstado(Estado::MONITOREANDO_SECADO);
 
           break;
 
@@ -778,38 +649,25 @@ void ejecutarFSM(
       switch (evento) {
 
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
 
           apagarActuadores();
 
-          Serial.println(
-            "[INFO] Ciclo finalizado."
-          );
+          Serial.println("[INFO] Ciclo finalizado.");
 
-          cambiarEstado(
-            Estado::ESPERA
-          );
+          cambiarEstado(Estado::ESPERA);
 
           break;
 
         case Evento::LLUVIA_DETECTADA:
 
-          actualizarLedSecado(
-            progreso
-          );
+          actualizarLedSecado();
 
-          iniciarBuzzer(
-            FRECUENCIA_BUZZER_LLUVIA_HZ
-          );
+          iniciarBuzzer(FRECUENCIA_BUZZER_LLUVIA_HZ);
 
           notificarLluvia();
 
-          publicarEstadoMQTT(
-            MQTT_MENSAJE_LLUVIA
-          );
-
-          cambiarEstado(
-            Estado::NOTIFICANDO_LLUVIA
-          );
+          cambiarEstado(Estado::NOTIFICANDO_LLUVIA);
 
           break;
 
@@ -817,30 +675,22 @@ void ejecutarFSM(
 
           encenderLedSeco();
 
-          iniciarBuzzer(
-            FRECUENCIA_BUZZER_SECA_HZ
-          );
+          iniciarBuzzer(FRECUENCIA_BUZZER_SECA_HZ);
 
           notificarRopaSeca();
 
-          publicarEstadoMQTT(
-            MQTT_MENSAJE_ROPA_SECA
-          );
-
-          cambiarEstado(
-            Estado::NOTIFICANDO_ROPA_SECA
-          );
+          cambiarEstado(Estado::NOTIFICANDO_ROPA_SECA);
 
           break;
 
         case Evento::ROPA_HUMEDA:
 
-          actualizarLedSecado(
-            progreso
-          );
-
+          actualizarLedSecado();
           apagarBuzzer();
 
+          break;
+
+        default:
           break;
       }
 
@@ -851,38 +701,25 @@ void ejecutarFSM(
       switch (evento) {
 
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
 
           apagarActuadores();
 
-          Serial.println(
-            "[INFO] Ciclo finalizado."
-          );
+          Serial.println("[INFO] Ciclo finalizado.");
 
-          cambiarEstado(
-            Estado::ESPERA
-          );
+          cambiarEstado(Estado::ESPERA);
 
           break;
 
         case Evento::LLUVIA_DETECTADA:
 
-          actualizarLedSecado(
-            progreso
-          );
+          actualizarLedSecado();
 
-          iniciarBuzzer(
-            FRECUENCIA_BUZZER_LLUVIA_HZ
-          );
+          iniciarBuzzer(FRECUENCIA_BUZZER_LLUVIA_HZ);
 
           notificarLluvia();
 
-          publicarEstadoMQTT(
-            MQTT_MENSAJE_LLUVIA
-          );
-
-          cambiarEstado(
-            Estado::NOTIFICANDO_LLUVIA
-          );
+          cambiarEstado(Estado::NOTIFICANDO_LLUVIA);
 
           break;
 
@@ -900,19 +737,15 @@ void ejecutarFSM(
         case Evento::ROPA_HUMEDA:
 
           apagarBuzzer();
+          actualizarLedSecado();
 
-          actualizarLedSecado(
-            progreso
-          );
+          Serial.println("[INFO] La ropa registra humedad nuevamente.");
 
-          Serial.println(
-            "[INFO] La ropa registra humedad nuevamente."
-          );
+          cambiarEstado(Estado::MONITOREANDO_SECADO);
 
-          cambiarEstado(
-            Estado::MONITOREANDO_SECADO
-          );
+          break;
 
+        default:
           break;
       }
 
@@ -923,24 +756,19 @@ void ejecutarFSM(
       switch (evento) {
 
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
 
           apagarActuadores();
 
-          Serial.println(
-            "[INFO] Ciclo finalizado."
-          );
+          Serial.println("[INFO] Ciclo finalizado.");
 
-          cambiarEstado(
-            Estado::ESPERA
-          );
+          cambiarEstado(Estado::ESPERA);
 
           break;
 
         case Evento::LLUVIA_DETECTADA:
 
-          actualizarLedSecado(
-            progreso
-          );
+          actualizarLedSecado();
 
           actualizarBuzzer(
             PERIODO_BUZZER_LLUVIA_MS,
@@ -953,38 +781,26 @@ void ejecutarFSM(
 
           encenderLedSeco();
 
-          iniciarBuzzer(
-            FRECUENCIA_BUZZER_SECA_HZ
-          );
+          iniciarBuzzer(FRECUENCIA_BUZZER_SECA_HZ);
 
           notificarRopaSeca();
 
-          publicarEstadoMQTT(
-            MQTT_MENSAJE_ROPA_SECA
-          );
-
-          cambiarEstado(
-            Estado::NOTIFICANDO_ROPA_SECA
-          );
+          cambiarEstado(Estado::NOTIFICANDO_ROPA_SECA);
 
           break;
 
         case Evento::ROPA_HUMEDA:
 
           apagarBuzzer();
+          actualizarLedSecado();
 
-          actualizarLedSecado(
-            progreso
-          );
+          Serial.println("[INFO] Finalizo la lluvia.");
 
-          Serial.println(
-            "[INFO] Finalizo la lluvia."
-          );
+          cambiarEstado(Estado::MONITOREANDO_SECADO);
 
-          cambiarEstado(
-            Estado::MONITOREANDO_SECADO
-          );
+          break;
 
+        default:
           break;
       }
 
@@ -996,135 +812,115 @@ void ejecutarFSM(
 // CAMBIO DE ESTADO
 // ======================================================
 
-void cambiarEstado(
-  Estado nuevoEstado
-)
+void cambiarEstado(Estado nuevoEstado)
 {
-  estadoActual =
-    nuevoEstado;
+  if (estadoActual == nuevoEstado) {
+    return;
+  }
 
-  Serial.print(
-    "[FSM] Nuevo estado: "
-  );
+  estadoActual = nuevoEstado;
 
-  Serial.println(
-    nombreEstado(
-      nuevoEstado
-    )
-  );
+  Serial.print("[FSM] Nuevo estado: ");
+  Serial.println(nombreEstado(nuevoEstado));
+
+  publicarEstadoMQTT();
 }
 
 // ======================================================
-// LED
+// LED - PROGRESO SECADO
 // ======================================================
 
-void actualizarLedSecado(
-  int progresoSecadoPct
-)
+void actualizarLedSecado()
 {
   int pwm = map(
-    progresoSecadoPct,
+    sensores.progresoSecadoPct,
     PORCENTAJE_MINIMO,
     PORCENTAJE_MAXIMO,
     PWM_MINIMO,
     PWM_MAXIMO
   );
 
-  analogWrite(
-    PIN_LED,
-    pwm
-  );
+  analogWrite(PIN_LED, pwm);
 }
+
+// ======================================================
+// LED - ROPA SECA
+// ======================================================
 
 void encenderLedSeco()
 {
-  analogWrite(
-    PIN_LED,
-    PWM_MAXIMO
-  );
+  analogWrite(PIN_LED, PWM_MAXIMO);
 }
+
+// ======================================================
+// LED - APAGAR
+// ======================================================
 
 void apagarLed()
 {
-  analogWrite(
-    PIN_LED,
-    PWM_MINIMO
-  );
+  analogWrite(PIN_LED, PWM_MINIMO);
 }
 
 // ======================================================
-// BUZZER
+// INICIAR BUZZER
 // ======================================================
 
-void iniciarBuzzer(
-  unsigned int frecuencia
-)
+void iniciarBuzzer(unsigned int frecuencia)
 {
-  ultimoCambioBuzzerMs =
-    millis();
+  ultimoCambioBuzzerMs = millis();
+  buzzerEncendido = true;
 
-  buzzerEncendido =
-    true;
-
-  encenderBuzzer(
-    frecuencia
-  );
+  encenderBuzzer(frecuencia);
 }
+
+// ======================================================
+// ACTUALIZAR BUZZER
+// ======================================================
 
 void actualizarBuzzer(
   unsigned long periodo,
   unsigned int frecuencia
 )
 {
-  unsigned long ahora =
-    millis();
+  unsigned long ahora = millis();
 
-  if (
-    ahora - ultimoCambioBuzzerMs
-    < periodo
-  ) {
+  if (ahora - ultimoCambioBuzzerMs < periodo) {
     return;
   }
 
-  ultimoCambioBuzzerMs =
-    ahora;
+  ultimoCambioBuzzerMs = ahora;
 
-  buzzerEncendido =
-    !buzzerEncendido;
+  buzzerEncendido = !buzzerEncendido;
 
-  if (
-    buzzerEncendido
-  ) {
-    encenderBuzzer(
-      frecuencia
-    );
+  if (buzzerEncendido) {
+    encenderBuzzer(frecuencia);
   } else {
     apagarBuzzer();
   }
 }
 
-void encenderBuzzer(
-  unsigned int frecuencia
-)
-{
-  tone(
-    PIN_BUZZER,
-    frecuencia
-  );
-}
+// ======================================================
+// ENCENDER BUZZER
+// ======================================================
 
-void apagarBuzzer()
+void encenderBuzzer(unsigned int frecuencia)
 {
-  noTone(
-    PIN_BUZZER
-  );
-
-  buzzerEncendido =
-    false;
+  tone(PIN_BUZZER, frecuencia);
 }
 
 // ======================================================
-// ACTUADORES
+// APAGAR BUZZER
+// ======================================================
+
+void apagarBuzzer()
+{
+  noTone(PIN_BUZZER);
+
+  buzzerEncendido = false;
+}
+
+// ======================================================
+// APAGAR ACTUADORES
 // ======================================================
 
 void apagarActuadores()
@@ -1134,30 +930,28 @@ void apagarActuadores()
 }
 
 // ======================================================
-// NOTIFICACIONES
+// NOTIFICACION ROPA SECA
 // ======================================================
 
 void notificarRopaSeca()
 {
-  Serial.println(
-    "[NOTIFICACION] Todas las prendas estan secas."
-  );
+  Serial.println("[NOTIFICACION] Todas las prendas estan secas.");
 }
+
+// ======================================================
+// NOTIFICACION LLUVIA
+// ======================================================
 
 void notificarLluvia()
 {
-  Serial.println(
-    "[NOTIFICACION] Se detecto lluvia."
-  );
+  Serial.println("[NOTIFICACION] Se detecto lluvia.");
 }
 
 // ======================================================
 // NOMBRE ESTADO
 // ======================================================
 
-const char *nombreEstado(
-  Estado estado
-)
+const char *nombreEstado(Estado estado)
 {
   switch (estado) {
 
@@ -1168,10 +962,10 @@ const char *nombreEstado(
       return "MONITOREANDO_SECADO";
 
     case Estado::NOTIFICANDO_ROPA_SECA:
-      return "NOTIFICANDO_ROPA_SECA";
+      return "ROPA_SECA";
 
     case Estado::NOTIFICANDO_LLUVIA:
-      return "NOTIFICANDO_LLUVIA";
+      return "LLUVIA";
   }
 
   return "DESCONOCIDO";
@@ -1186,59 +980,32 @@ void mostrarLecturas()
   Serial.print("[SENSORES] ");
 
   Serial.print("Prenda 1: ");
-  Serial.print(
-    sensores.humedadPrenda1Pct
-  );
+  Serial.print(sensores.humedadPrenda1Pct);
   Serial.print("%");
 
   Serial.print(" | Prenda 2: ");
-  Serial.print(
-    sensores.humedadPrenda2Pct
-  );
+  Serial.print(sensores.humedadPrenda2Pct);
   Serial.print("%");
 
-  Serial.print(
-    " | Humedad general: "
-  );
-  Serial.print(
-    sensores.humedadGeneralPct
-  );
+  Serial.print(" | Humedad general: ");
+  Serial.print(sensores.humedadGeneralPct);
   Serial.print("%");
 
-  Serial.print(
-    " | Secado: "
-  );
-  Serial.print(
-    sensores.progresoSecadoPct
-  );
+  Serial.print(" | Secado: ");
+  Serial.print(sensores.progresoSecadoPct);
   Serial.print("%");
 
-  Serial.print(
-    " | Lluvia ADC: "
-  );
-  Serial.print(
-    sensores.adcLluvia
-  );
+  Serial.print(" | Lluvia ADC: ");
+  Serial.print(sensores.adcLluvia);
 
-  Serial.print(
-    " | Lluvia: "
-  );
+  Serial.print(" | Lluvia: ");
 
-  if (
-    sensores.lluvia
-  ) {
+  if (sensores.lluvia) {
     Serial.print("SI");
   } else {
     Serial.print("NO");
   }
 
-  Serial.print(
-    " | Estado: "
-  );
-
-  Serial.println(
-    nombreEstado(
-      estadoActual
-    )
-  );
+  Serial.print(" | Estado: ");
+  Serial.println(nombreEstado(estadoActual));
 }
