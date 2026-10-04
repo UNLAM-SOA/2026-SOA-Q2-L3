@@ -75,12 +75,12 @@ constexpr char WIFI_PASSWORD[] = "TU_PASSWORD";
 constexpr char MQTT_BROKER[] = "test.mosquitto.org";
 constexpr uint16_t MQTT_PUERTO = 1883;
 
-constexpr char MQTT_CLIENT_ID[] = "esp32-lavadero-grupo5";
+constexpr char MQTT_CLIENT_ID[] = "esp32-lavadero-grupo3";
 
-constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo5/lavadero/comando";
-constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo5/lavadero/estado";
-constexpr char MQTT_TOPIC_SENSOR[] = "unlam/soa/grupo5/lavadero/sensor";
-constexpr char MQTT_TOPIC_CONEXION[] = "unlam/soa/grupo5/lavadero/conexion";
+constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo3/lavadero/comando";
+constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo3/lavadero/estado";
+constexpr char MQTT_TOPIC_SENSOR[] = "unlam/soa/grupo3/lavadero/sensor";
+constexpr char MQTT_TOPIC_CONEXION[] = "unlam/soa/grupo3/lavadero/conexion";
 
 constexpr char MQTT_COMANDO_INICIAR[] = "INICIAR";
 constexpr char MQTT_COMANDO_FINALIZAR[] = "FINALIZAR";
