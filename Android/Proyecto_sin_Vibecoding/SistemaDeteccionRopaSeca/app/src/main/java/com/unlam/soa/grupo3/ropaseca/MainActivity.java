@@ -12,37 +12,36 @@ public class MainActivity extends AppCompatActivity {
     private MqttManager mqttManager;
     private TextView tvEstadoConexion;
 
-    private final MqttManager.MqttListener mqttListener =
-            new MqttManager.MqttListener() {
+    private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
 
-                @Override
-                public void onBrokerConectado() {
-                    // El cartel del Main representa la estación, no el broker.
-                }
+        @Override
+        public void onBrokerConectado() {
+            // El cartel del Main representa la estación, no el broker.
+        }
 
-                @Override
-                public void onBrokerDesconectado() {
-                    runOnUiThread(() -> mostrarEstacionDesconectada());
-                }
+        @Override
+        public void onBrokerDesconectado() {
+            runOnUiThread(() -> mostrarEstacionDesconectada());
+        }
 
-                @Override
-                public void onEstacionConectada() {
-                    runOnUiThread(() -> mostrarEstacionConectada());
-                }
+        @Override
+        public void onEstacionConectada() {
+            runOnUiThread(() -> mostrarEstacionConectada());
+        }
 
-                @Override
-                public void onEstacionDesconectada() {
-                    runOnUiThread(() -> mostrarEstacionDesconectada());
-                }
+        @Override
+        public void onEstacionDesconectada() {
+            runOnUiThread(() -> mostrarEstacionDesconectada());
+        }
 
-                @Override
-                public void onEstadoRecibido(String estado) {
-                }
+        @Override
+        public void onEstadoRecibido(String estado) {
+        }
 
-                @Override
-                public void onHumedadRecibida(int humedad) {
-                }
-            };
+        @Override
+        public void onHumedadRecibida(int humedad) {
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -1,6 +1,8 @@
 package com.unlam.soa.grupo3.ropaseca;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,45 +15,56 @@ public class ConexionActivity extends AppCompatActivity {
 
     private MqttManager mqttManager;
 
-    private final MqttManager.MqttListener mqttListener =
-            new MqttManager.MqttListener() {
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
-                @Override
-                public void onBrokerConectado() {
-                    runOnUiThread(() -> mostrarBrokerConectado());
-                }
+    private final Runnable actualizadorTiempo = new Runnable() {
+        @Override
+        public void run() {
+            actualizarUltimaComunicacion();
+            handler.postDelayed(this, 1000);
+        }
+    };
 
-                @Override
-                public void onBrokerDesconectado() {
-                    runOnUiThread(() -> mostrarBrokerDesconectado());
-                }
+    private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
 
-                @Override
-                public void onEstacionConectada() {
-                    runOnUiThread(() -> {
-                        mostrarEstacionConectada();
-                        actualizarUltimaComunicacion();
-                    });
-                }
+        @Override
+        public void onBrokerConectado() {
+            runOnUiThread(() -> mostrarBrokerConectado());
+        }
 
-                @Override
-                public void onEstacionDesconectada() {
-                    runOnUiThread(() -> {
-                        mostrarEstacionDesconectada();
-                        actualizarUltimaComunicacion();
-                    });
-                }
+        @Override
+        public void onBrokerDesconectado() {
+            runOnUiThread(() -> mostrarBrokerDesconectado());
+        }
 
-                @Override
-                public void onEstadoRecibido(String estado) {
-                    runOnUiThread(() -> actualizarUltimaComunicacion());
-                }
+        @Override
+        public void onEstacionConectada() {
+            runOnUiThread(() -> {
+                mostrarEstacionConectada();
+                actualizarUltimaComunicacion();
+            });
+        }
 
-                @Override
-                public void onHumedadRecibida(int humedad) {
-                    runOnUiThread(() -> actualizarUltimaComunicacion());
-                }
-            };
+        @Override
+        public void onEstacionDesconectada() {
+            runOnUiThread(() -> {
+                mostrarEstacionDesconectada();
+                actualizarUltimaComunicacion();
+            });
+        }
+
+        @Override
+        public void onEstadoRecibido(String estado) {
+            runOnUiThread(() -> {
+                mostrarEstacionConectada();
+                actualizarUltimaComunicacion();
+            });
+        }
+
+        @Override
+        public void onHumedadRecibida(int humedad) {
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +88,9 @@ public class ConexionActivity extends AppCompatActivity {
 
         mqttManager.agregarListener(mqttListener);
         actualizarPantalla();
+
+        handler.removeCallbacks(actualizadorTiempo);
+        handler.post(actualizadorTiempo);
     }
 
     @Override
@@ -82,6 +98,7 @@ public class ConexionActivity extends AppCompatActivity {
         super.onStop();
 
         mqttManager.quitarListener(mqttListener);
+        handler.removeCallbacks(actualizadorTiempo);
     }
 
     private void actualizarPantalla() {
@@ -117,14 +134,14 @@ public class ConexionActivity extends AppCompatActivity {
     }
 
     private void actualizarUltimaComunicacion() {
-        long ultimaComunicacion = mqttManager.getUltimaComunicacion();
+        long ultimoEstado = mqttManager.getUltimoEstadoRecibido();
 
-        if (ultimaComunicacion == 0) {
+        if (ultimoEstado == 0) {
             tvUltimaComunicacion.setText("Sin comunicaciones registradas");
             return;
         }
 
-        long segundos = (System.currentTimeMillis() - ultimaComunicacion) / 1000;
+        long segundos = (System.currentTimeMillis() - ultimoEstado) / 1000;
 
         if (segundos < 5) {
             tvUltimaComunicacion.setText("Última comunicación: ahora");

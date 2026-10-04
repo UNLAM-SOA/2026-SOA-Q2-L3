@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
@@ -9,18 +11,15 @@
     android:padding="24dp"
     tools:context=".ConexionActivity">
 
-    <TextView
+    <ImageButton
         android:id="@+id/btnVolver"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:text="‹"
-        android:textColor="#172033"
-        android:textSize="40sp"
-        android:translationY="-7dp"
+        android:background="@android:color/transparent"
+        android:contentDescription="Volver"
+        android:padding="12dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_arrow_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -118,7 +117,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:text="test.mosquitto.org  •  Puerto 1883"
+        android:text="broker.emqx.io  •  Puerto 1883"
         android:textColor="#98A2B3"
         android:textSize="13sp"
         app:layout_constraintStart_toStartOf="parent"

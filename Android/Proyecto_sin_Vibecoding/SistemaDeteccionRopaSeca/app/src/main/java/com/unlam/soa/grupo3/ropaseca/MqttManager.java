@@ -17,14 +17,10 @@ import java.util.UUID;
 
 public class MqttManager {
 
-    private static final String BROKER_URL = "tcp://test.mosquitto.org:1883";
+    private static final String BROKER_URL = "tcp://broker.emqx.io:1883";
 
-    private static final String TOPIC_CONEXION =
-            "unlam/soa/grupo3/lavadero/conexion";
-    private static final String TOPIC_ESTADO =
-            "unlam/soa/grupo3/lavadero/estado";
-    private static final String TOPIC_SENSOR =
-            "unlam/soa/grupo3/lavadero/sensor";
+    private static final String TOPIC_ESTADO = "unlam/soa/grupo3/lavadero/estado";
+    private static final String TOPIC_SENSOR = "unlam/soa/grupo3/lavadero/sensor";
 
     private static final long TIMEOUT_ESTACION_MS = 15000;
     private static final long INTERVALO_VERIFICACION_MS = 5000;
@@ -36,10 +32,11 @@ public class MqttManager {
     private boolean estacionConectada = false;
     private String ultimoEstado = null;
     private Integer ultimaHumedad = null;
-    private long ultimaComunicacion = 0;
+
+    private long ultimoEstadoRecibido = 0;
+    private long ultimaLecturaSensor = 0;
 
     private final List<MqttListener> listeners = new ArrayList<>();
-
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private final Runnable verificadorConexion = new Runnable() {
@@ -90,12 +87,7 @@ public class MqttManager {
         try {
             if (mqttClient == null) {
                 String clientId = "android-grupo3-" + UUID.randomUUID();
-
-                mqttClient = new MqttAsyncClient(
-                        BROKER_URL,
-                        clientId,
-                        null
-                );
+                mqttClient = new MqttAsyncClient(BROKER_URL, clientId, null);
             }
 
             MqttConnectOptions opciones = new MqttConnectOptions();
@@ -112,14 +104,8 @@ public class MqttManager {
                 }
 
                 @Override
-                public void onFailure(
-                        IMqttToken asyncActionToken,
-                        Throwable exception
-                ) {
-                    System.out.println(
-                            "MQTT: error de conexión - " + exception.getMessage()
-                    );
-
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    System.out.println("MQTT: error de conexión - " + exception.getMessage());
                     notificarBrokerDesconectado();
                 }
             });
@@ -135,74 +121,44 @@ public class MqttManager {
             return;
         }
 
-        suscribirse(TOPIC_CONEXION, this::procesarConexion);
         suscribirse(TOPIC_ESTADO, this::procesarEstado);
         suscribirse(TOPIC_SENSOR, this::procesarSensor);
     }
 
-    private void suscribirse(
-            String topic,
-            IMqttMessageListener listener
-    ) {
+    private void suscribirse(String topic, IMqttMessageListener listener) {
         try {
             mqttClient.subscribe(topic, 0, listener);
             System.out.println("MQTT: suscripto a " + topic);
 
         } catch (MqttException e) {
-            System.out.println(
-                    "MQTT: error al suscribirse a "
-                            + topic
-                            + " - "
-                            + e.getMessage()
-            );
+            System.out.println("MQTT: error al suscribirse a " + topic + " - " + e.getMessage());
         }
     }
 
-    private void procesarConexion(
-            String topic,
-            MqttMessage message
-    ) {
-        String payload = new String(message.getPayload()).trim();
-
-        System.out.println("MQTT conexión: " + payload);
-
-        if ("ONLINE".equalsIgnoreCase(payload)) {
-            registrarComunicacion();
-
-            if (!estacionConectada) {
-                estacionConectada = true;
-                notificarEstacionConectada();
-            }
-        }
-    }
-
-    private void procesarEstado(
-            String topic,
-            MqttMessage message
-    ) {
+    private void procesarEstado(String topic, MqttMessage message) {
         String estado = new String(message.getPayload()).trim();
 
         ultimoEstado = estado;
-        registrarComunicacion();
-        marcarEstacionConectada();
+        ultimoEstadoRecibido = System.currentTimeMillis();
 
         System.out.println("MQTT estado: " + estado);
+
+        if (!estacionConectada) {
+            estacionConectada = true;
+            notificarEstacionConectada();
+        }
 
         notificarEstado(estado);
     }
 
-    private void procesarSensor(
-            String topic,
-            MqttMessage message
-    ) {
+    private void procesarSensor(String topic, MqttMessage message) {
         String payload = new String(message.getPayload()).trim();
 
         try {
             int humedad = Integer.parseInt(payload);
 
             ultimaHumedad = humedad;
-            registrarComunicacion();
-            marcarEstacionConectada();
+            ultimaLecturaSensor = System.currentTimeMillis();
 
             System.out.println("MQTT humedad: " + humedad + "%");
 
@@ -213,26 +169,14 @@ public class MqttManager {
         }
     }
 
-    private void registrarComunicacion() {
-        ultimaComunicacion = System.currentTimeMillis();
-    }
-
-    private void marcarEstacionConectada() {
-        if (!estacionConectada) {
-            estacionConectada = true;
-            notificarEstacionConectada();
-        }
-    }
-
     private void verificarConexionEstacion() {
-        if (!estacionConectada || ultimaComunicacion == 0) {
+        if (!estacionConectada || ultimoEstadoRecibido == 0) {
             return;
         }
 
-        long tiempoSinComunicacion =
-                System.currentTimeMillis() - ultimaComunicacion;
+        long tiempoSinEstado = System.currentTimeMillis() - ultimoEstadoRecibido;
 
-        if (tiempoSinComunicacion > TIMEOUT_ESTACION_MS) {
+        if (tiempoSinEstado > TIMEOUT_ESTACION_MS) {
             estacionConectada = false;
 
             System.out.println("MQTT: estación sin conexión");
@@ -293,7 +237,11 @@ public class MqttManager {
         return ultimaHumedad;
     }
 
-    public long getUltimaComunicacion() {
-        return ultimaComunicacion;
+    public long getUltimoEstadoRecibido() {
+        return ultimoEstadoRecibido;
+    }
+
+    public long getUltimaLecturaSensor() {
+        return ultimaLecturaSensor;
     }
 }
