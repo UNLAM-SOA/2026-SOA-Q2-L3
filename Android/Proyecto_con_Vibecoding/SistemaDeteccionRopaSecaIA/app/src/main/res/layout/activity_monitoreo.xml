@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:clipToPadding="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+        <TextView style="@style/Titulo" android:text="@string/monitoreo" />
+        <TextView android:id="@+id/tvEstado" style="@style/Texto" android:text="@string/estado_desconocido" />
+        <TextView style="@style/Texto" android:text="@string/sin_mqtt" />
+        <TextView android:id="@+id/tvHumedad" style="@style/Texto" android:text="@string/humedad_sin_datos" />
+        <TextView android:id="@+id/tvProgreso" style="@style/Texto" android:text="@string/progreso_sin_datos" />
+        <ProgressBar android:id="@+id/progresoSecado" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" android:max="100" android:indeterminate="false"
+            android:enabled="false" android:importantForAccessibility="no" android:visibility="gone" />
+        <TextView android:id="@+id/tvAntiguedad" style="@style/Texto" android:text="@string/antiguedad_lectura" />
+        <TextView android:id="@+id/tvLluvia" style="@style/Texto" android:text="@string/lluvia_sin_datos" />
+        <TextView android:id="@+id/tvRopaSeca" style="@style/Texto" android:text="@string/seca_sin_datos" />
+        <Button android:id="@+id/btnCiclo" style="@style/Boton" android:text="@string/control_ciclo" android:enabled="false" />
+        <TextView style="@style/Texto" android:text="@string/control_no_disponible" />
+        <TextView style="@style/Texto" android:text="@string/progreso_aclaracion" />
+        <Button android:id="@+id/btnVolver" style="@style/Boton" android:text="@string/volver" />
+    </LinearLayout>
+</ScrollView>

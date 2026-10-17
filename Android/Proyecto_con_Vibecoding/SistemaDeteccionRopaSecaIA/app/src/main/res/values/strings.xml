@@ -1,3 +1,42 @@
-<resources>
-    <string name="app_name">SistemaDeteccionRopaSecaIA</string>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="app_name">Ropa seca IA</string>
+    <string name="descripcion">Sistema de detección de ropa seca</string>
+    <string name="inicio_estado">Estación: conexión todavía no disponible</string>
+    <string name="sin_mqtt">La comunicación MQTT no está implementada en este incremento. No se consulta ni controla la estación.</string>
+    <string name="monitoreo">Monitoreo</string>
+    <string name="condiciones">Condiciones de secado</string>
+    <string name="conexion">Conexión</string>
+    <string name="volver">Volver a Inicio</string>
+    <string name="estado_desconocido">Estado de la estación: desconocido</string>
+    <string name="humedad_sin_datos">Humedad general: sin datos</string>
+    <string name="progreso_sin_datos">Progreso de secado: sin datos</string>
+    <string name="antiguedad_lectura">Antigüedad de lectura: sin lecturas recibidas</string>
+    <string name="lluvia_sin_datos">Lluvia: sin datos para confirmar su presencia o ausencia.</string>
+    <string name="seca_sin_datos">Ropa seca: sin datos para confirmar la condición.</string>
+    <string name="control_ciclo">Iniciar / finalizar ciclo</string>
+    <string name="control_no_disponible">Control deshabilitado: se necesita comunicación y un estado confirmado. Para operar la estación, usá su pulsador físico.</string>
+    <string name="progreso_aclaracion">El progreso no representa tiempo restante. La humedad es un índice estimado de conductividad.</string>
+    <string name="acercar_telefono">Acercá el teléfono al lugar donde está la ropa, sin cubrir su sensor de luz.</string>
+    <string name="lux_sin_datos">Iluminación: sin datos</string>
+    <string name="lux_valor">Iluminación: %1$s lux</string>
+    <string name="esperando_luz">Esperando una lectura del sensor…</string>
+    <string name="sin_sensor">Este teléfono no dispone de sensor de luz ambiental. Podés usar las demás pantallas.</string>
+    <string name="error_sensor">No se pudo activar el sensor de luz. Volvé a entrar para reintentar.</string>
+    <string name="lectura_invalida">Lectura de luz no válida; sin clasificación.</string>
+    <string name="luz_muy_poca">Muy poca iluminación</string>
+    <string name="luz_poca">Poca iluminación</string>
+    <string name="luz_buena">Buena iluminación</string>
+    <string name="luz_excelente">Excelente iluminación</string>
+    <string name="luz_aclaracion">Orientación basada solo en la iluminación: no estima la duración del secado ni modifica el ESP32. Funciona sin MQTT.</string>
+    <string name="broker_titulo">Broker MQTT</string>
+    <string name="broker_estado">Conexión no implementada; disponibilidad no comprobada.</string>
+    <string name="estacion_titulo">Estación ESP32</string>
+    <string name="estacion_estado">Comunicación desconocida; sin estados recibidos.</string>
+    <string name="antiguedad_estado">Antigüedad del último estado válido: sin datos</string>
+    <string name="separacion_conexion">La conexión al broker no confirma la comunicación con la estación.</string>
+    <string name="configuracion_titulo">Contrato del firmware (informativo)</string>
+    <string name="broker_config" translatable="false">broker.emqx.io:1883</string>
+    <string name="transporte">MQTT sobre TCP, sin autenticación ni cifrado. Broker público: solo uso académico, sin datos sensibles.</string>
+    <string name="topics_config" translatable="false">unlam/soa/grupo3/lavadero-ia/comando\nunlam/soa/grupo3/lavadero-ia/estado\nunlam/soa/grupo3/lavadero-ia/sensor</string>
+    <string name="mensajes_config" formatted="false">Comandos: INICIAR / FINALIZAR\nEstados: ESPERA / MONITOREANDO_SECADO / ROPA_SECA / LLUVIA\nSensor: humedad general, entero de 0 a 100 sin %\nQoS 0, mensajes no retenidos.</string>
 </resources>
