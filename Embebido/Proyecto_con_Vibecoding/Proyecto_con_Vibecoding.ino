@@ -6,22 +6,10 @@
 #include "Configuracion.h"
 #include "ControlLocal.h"
 #include "PruebasControl.h"
+#include "PruebasMqtt.h"
+#include "Comunicacion.h"
 
 using namespace Configuracion;
-
-enum class Estado {
-  ESPERA,
-  MONITOREANDO_SECADO,
-  NOTIFICANDO_ROPA_SECA,
-  NOTIFICANDO_LLUVIA
-};
-
-enum class Evento {
-  BOTON_CICLO,
-  ROPA_SECA,
-  ROPA_HUMEDA,
-  LLUVIA_DETECTADA
-};
 
 struct LecturasSensores {
   int adcPrenda1;
@@ -45,9 +33,15 @@ LecturasSensores sensores = {};
 CondicionesCiclo condiciones;
 AlertaSonora alertaSonora;
 bool buzzerEncendido = false;
+bool lecturaValida = false;
+uint32_t revisionEstado = 0;
+uint32_t numeroCiclo = 0;
+uint32_t pulsacionesProcesadas = 0;
 
 void tareaSensores(void *parametros);
 void tareaFSM(void *parametros);
+void procesarEntradas(const MensajeSensores *mensaje, Evento comando);
+void compartirActual();
 LecturasSensores leerSensores();
 Evento generarEvento();
 void ejecutarFSM(Evento evento);
@@ -75,7 +69,14 @@ void setup()
     return;
   }
   Serial.println("[TEST] Control local: OK");
-  Serial.println("[FSM] Estado inicial: ESPERA. Sin WiFi/MQTT.");
+  const int fallaMqtt = probarMqtt();
+  if (fallaMqtt != 0) {
+    Serial.printf("[ERROR] Autoprueba, PruebasMqtt.h linea %d. Control detenido.\n", fallaMqtt);
+    return;
+  }
+  Serial.println("[TEST] Protocolo MQTT: OK");
+  Serial.println("[FSM] Estado inicial: ESPERA.");
+  compartirActual();
 
   // Buzón de última muestra: no conserva condiciones viejas. El contador
   // acumulativo permite recuperar pulsaciones aunque se sobrescriba su muestra.
@@ -101,6 +102,10 @@ void setup()
     colaEventos = nullptr;
     apagarActuadores();
     Serial.println("[ERROR] No se pudo crear tareaFSM. Control detenido.");
+    return;
+  }
+  if (!iniciarComunicacion()) {
+    Serial.println("[ERROR] No se pudo crear tareaComunicacion. Continua el control local.");
   }
 }
 
@@ -147,30 +152,57 @@ void tareaFSM(void *parametros)
 {
   (void)parametros;
   MensajeSensores mensaje;
-  uint32_t pulsacionesProcesadas = 0;
   uint32_t ultimoLogMs = millis();
   while (true) {
-    if (xQueueReceive(colaEventos, &mensaje,
-                      pdMS_TO_TICKS(PERIODO_LECTURA_MS)) == pdTRUE) {
-      sensores = mensaje.lecturas;
-      // El contador conserva los eventos de pulsación aunque se sobrescriba
-      // su muestra original. Cada pulsación actúa una vez.
-      while (pulsacionesProcesadas != mensaje.pulsaciones) {
-        ++pulsacionesProcesadas;
-        ejecutarFSM(Evento::BOTON_CICLO);
-      }
-      if (estadoActual != Estado::ESPERA) {
-        condiciones.actualizar(sensores.humedadGeneral, sensores.adcLluvia, millis());
-        ejecutarFSM(generarEvento());
-      }
-    }
-    // Se atiende el plazo sonoro aun si no llega una nueva lectura.
-    actualizarActuadores();
+    const bool muestraNueva = xQueueReceive(colaEventos, &mensaje,
+      pdMS_TO_TICKS(PERIODO_LECTURA_MS)) == pdTRUE;
+    procesarEntradas(muestraNueva ? &mensaje : nullptr, tomarComando(millis()));
     if (transcurrio(millis(), ultimoLogMs, PERIODO_LOG_MS)) {
       ultimoLogMs = millis();
       mostrarLecturas();
     }
   }
+}
+
+// Una iteración de control, sin llamadas de red ni esperas; permite probar
+// la FSM real con entradas inyectadas, sin simular el scheduler de FreeRTOS.
+void procesarEntradas(const MensajeSensores *mensaje, Evento comando)
+{
+  bool finalizadoLocal = false;
+  if (mensaje != nullptr) {
+    sensores = mensaje->lecturas;
+    while (pulsacionesProcesadas != mensaje->pulsaciones) {
+      ++pulsacionesProcesadas;
+      // FINALIZAR remoto prevalece sobre las pulsaciones de esta iteración.
+      if (comando != Evento::COMANDO_FINALIZAR) {
+        finalizadoLocal = finalizadoLocal || estadoActual != Estado::ESPERA;
+        ejecutarFSM(Evento::BOTON_CICLO);
+      }
+    }
+  }
+  if (comando == Evento::COMANDO_FINALIZAR ||
+      (comando == Evento::COMANDO_INICIAR && !finalizadoLocal)) {
+    ejecutarFSM(comando);
+  }
+  if (mensaje != nullptr && estadoActual != Estado::ESPERA) {
+    lecturaValida = true;
+    condiciones.actualizar(sensores.humedadGeneral, sensores.adcLluvia, millis());
+    ejecutarFSM(generarEvento());
+  }
+  // Se atiende el plazo sonoro aun si no llega una nueva lectura.
+  actualizarActuadores();
+  compartirActual();
+}
+
+void compartirActual()
+{
+  InstantaneaSistema actual;
+  actual.estado = estadoActual;
+  actual.revisionEstado = revisionEstado;
+  actual.ciclo = numeroCiclo;
+  actual.lecturaValida = lecturaValida;
+  actual.humedad = sensores.humedadGeneral;
+  compartirEstado(actual);
 }
 
 Evento generarEvento()
@@ -189,6 +221,7 @@ void ejecutarFSM(Evento evento)
     case Estado::ESPERA:
       switch (evento) {
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_INICIAR:
           condiciones.reiniciar(millis());
           cambiarEstado(Estado::MONITOREANDO_SECADO);
           break;
@@ -200,6 +233,7 @@ void ejecutarFSM(Evento evento)
     case Estado::MONITOREANDO_SECADO:
       switch (evento) {
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
           cambiarEstado(Estado::ESPERA);
           break;
         case Evento::LLUVIA_DETECTADA:
@@ -217,6 +251,7 @@ void ejecutarFSM(Evento evento)
     case Estado::NOTIFICANDO_ROPA_SECA:
       switch (evento) {
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
           cambiarEstado(Estado::ESPERA);
           break;
         case Evento::LLUVIA_DETECTADA:
@@ -234,6 +269,7 @@ void ejecutarFSM(Evento evento)
     case Estado::NOTIFICANDO_LLUVIA:
       switch (evento) {
         case Evento::BOTON_CICLO:
+        case Evento::COMANDO_FINALIZAR:
           cambiarEstado(Estado::ESPERA);
           break;
         case Evento::ROPA_SECA:
@@ -255,13 +291,21 @@ void cambiarEstado(Estado nuevoEstado)
   if (nuevoEstado == estadoActual) {
     return;
   }
+  if (estadoActual == Estado::ESPERA || nuevoEstado == Estado::ESPERA) {
+    lecturaValida = false;
+  }
+  if (estadoActual == Estado::ESPERA && nuevoEstado != Estado::ESPERA) {
+    ++numeroCiclo;
+  }
   estadoActual = nuevoEstado;
+  ++revisionEstado;
   // Solo una entrada real a una alerta inicia el plazo sonoro.
   if (nuevoEstado == Estado::NOTIFICANDO_ROPA_SECA ||
       nuevoEstado == Estado::NOTIFICANDO_LLUVIA) {
     alertaSonora.iniciar(millis());
   }
   actualizarActuadores();
+  compartirActual();
   Serial.printf("[FSM] %s\n", nombreEstado(estadoActual));
 }
 
@@ -272,7 +316,7 @@ void actualizarActuadores()
     return;
   }
   analogWrite(PIN_LED, estadoActual == Estado::NOTIFICANDO_ROPA_SECA
-    ? PWM_MAXIMO : calcularPwm(sensores.progreso));
+    ? PWM_MAXIMO : (lecturaValida ? calcularPwm(sensores.progreso) : 0));
   const bool alerta = estadoActual == Estado::NOTIFICANDO_ROPA_SECA ||
                       estadoActual == Estado::NOTIFICANDO_LLUVIA;
   const uint32_t cadencia = estadoActual == Estado::NOTIFICANDO_LLUVIA
@@ -309,10 +353,10 @@ const char *nombreEstado(Estado estado)
 void mostrarLecturas()
 {
   Serial.printf("[SENSORES] ADC=%d/%d lluvia=%d H=%d/%d general=%d progreso=%d "
-                "seco=%d lluviaConfirmada=%d buzzer=%d estado=%s\n",
+                "valida=%d seco=%d lluviaConfirmada=%d buzzer=%d estado=%s\n",
                 sensores.adcPrenda1, sensores.adcPrenda2, sensores.adcLluvia,
                 sensores.humedadPrenda1, sensores.humedadPrenda2,
                 sensores.humedadGeneral, sensores.progreso,
-                condiciones.seca.valor, condiciones.lluvia.valor,
+                lecturaValida, condiciones.seca.valor, condiciones.lluvia.valor,
                 buzzerEncendido, nombreEstado(estadoActual));
 }

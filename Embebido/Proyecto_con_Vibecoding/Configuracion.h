@@ -36,7 +36,26 @@ constexpr int PWM_MAXIMO = 255;
 
 constexpr uint32_t PILA_SENSORES = 3072;
 constexpr uint32_t PILA_FSM = 4096;
-constexpr uint8_t PRIORIDAD_TAREAS = 1;
+constexpr uint32_t PILA_COMUNICACION = 6144;
+constexpr uint8_t PRIORIDAD_TAREAS = 2;
+constexpr uint8_t PRIORIDAD_COMUNICACION = 1;
+
+constexpr char MQTT_BROKER[] = "broker.emqx.io";
+constexpr uint16_t MQTT_PUERTO = 1883;
+#define LAVADERO_PREFIJO_MQTT "unlam/soa/grupo3/lavadero-ia/"
+constexpr char MQTT_TOPIC_COMANDO[] = LAVADERO_PREFIJO_MQTT "comando";
+constexpr char MQTT_TOPIC_ESTADO[] = LAVADERO_PREFIJO_MQTT "estado";
+constexpr char MQTT_TOPIC_SENSOR[] = LAVADERO_PREFIJO_MQTT "sensor";
+#undef LAVADERO_PREFIJO_MQTT
+constexpr uint32_t REINTENTO_CONEXION_MS = 5000;
+constexpr uint32_t PUBLICACION_ESTADO_MS = 5000;
+constexpr uint32_t PUBLICACION_SENSOR_MS = 5000;
+constexpr uint32_t PERIODO_COMUNICACION_MS = 50;
+constexpr uint32_t VIGENCIA_COMANDO_MS = 1000;
+constexpr int32_t TIMEOUT_TCP_MS = 1500;
+constexpr uint16_t TIMEOUT_MQTT_S = 1;
+constexpr uint16_t KEEPALIVE_MQTT_S = 5;
+constexpr uint16_t BUFFER_MQTT_BYTES = 256;
 
 constexpr bool calibracionValida(CalibracionBroche c)
 {
