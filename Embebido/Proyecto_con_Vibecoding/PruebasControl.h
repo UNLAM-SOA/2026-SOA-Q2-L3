@@ -28,6 +28,11 @@ inline int probarControlLocal()
   COMPROBAR(calcularProgreso(59) == 51);
   COMPROBAR(calcularPwm(50) == 127);
   COMPROBAR(calcularPwm(100) == 255);
+  COMPROBAR(contadorPosterior(1, 0));
+  COMPROBAR(!contadorPosterior(0, 1));
+  COMPROBAR(!contadorPosterior(1, 1));
+  COMPROBAR(contadorPosterior(0, UINT32_MAX));
+  COMPROBAR(!contadorPosterior(UINT32_MAX, 0));
 
   CondicionesCiclo c;
   c.reiniciar(0);
@@ -54,26 +59,34 @@ inline int probarControlLocal()
   c.actualizar(22, 0, 6300);
   COMPROBAR(!c.seca.valor);
 
-  c.reiniciar(0);
-  c.actualizar(80, 2000, 0);
-  c.actualizar(80, 1999, 900);
-  c.actualizar(80, 2000, 1000);
-  c.actualizar(80, 2000, 1999);
-  COMPROBAR(!c.lluvia.valor);
-  c.actualizar(80, 2000, 2000);
-  COMPROBAR(c.lluvia.valor);
-  c.actualizar(80, 1999, 2100);
-  c.actualizar(80, 1999, 3099);
-  COMPROBAR(c.lluvia.valor);
-  c.actualizar(80, 1999, 3100);
-  COMPROBAR(!c.lluvia.valor);
+  // Fixtures explícitos: probar ambos sentidos no depende de la calibración
+  // elegida para el equipo, ni obliga a editar estas expectativas al invertirla.
+  const bool sentidos[] = {true, false};
+  for (bool adcAlto : sentidos) {
+    const int umbralPrueba = 2000;
+    const int adcSinLluvia = adcAlto ? 1999 : 2001;
+    const int adcConLluvia = adcAlto ? 2001 : 1999;
+    COMPROBAR(detectarLluvia(umbralPrueba, umbralPrueba, adcAlto));
+    COMPROBAR(detectarLluvia(adcConLluvia, umbralPrueba, adcAlto));
+    COMPROBAR(!detectarLluvia(adcSinLluvia, umbralPrueba, adcAlto));
+    CondicionEstable lluvia;
+    lluvia.reiniciar(0);
+    lluvia.actualizar(detectarLluvia(adcConLluvia, umbralPrueba, adcAlto), 0);
+    lluvia.actualizar(detectarLluvia(adcSinLluvia, umbralPrueba, adcAlto), 900);
+    lluvia.actualizar(detectarLluvia(umbralPrueba, umbralPrueba, adcAlto), 1000);
+    COMPROBAR(!lluvia.actualizar(true, 1999));
+    COMPROBAR(lluvia.actualizar(true, 2000));
+    lluvia.actualizar(detectarLluvia(adcSinLluvia, umbralPrueba, adcAlto), 2100);
+    COMPROBAR(lluvia.actualizar(false, 3099));
+    COMPROBAR(!lluvia.actualizar(false, 3100));
+  }
 
   c.reiniciar(0);
-  c.actualizar(20, 2000, 0);
-  c.actualizar(20, 2000, 1000);
+  c.actualizar(20, UMBRAL_LLUVIA_ADC, 0);
+  c.actualizar(20, UMBRAL_LLUVIA_ADC, 1000);
   COMPROBAR(c.seca.valor && c.lluvia.valor);
-  c.actualizar(25, 2000, 1100);
-  c.actualizar(25, 2000, 2100);
+  c.actualizar(25, UMBRAL_LLUVIA_ADC, 1100);
+  c.actualizar(25, UMBRAL_LLUVIA_ADC, 2100);
   COMPROBAR(!c.seca.valor && c.lluvia.valor);
 
   BotonAntirrebote boton;

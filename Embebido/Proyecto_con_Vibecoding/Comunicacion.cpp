@@ -14,25 +14,6 @@
 namespace {
 using namespace Configuracion;
 
-portMUX_TYPE mutexIntercambio = portMUX_INITIALIZER_UNLOCKED;
-InstantaneaSistema ultimaInstantanea;
-BuzonComandos comandos;
-
-InstantaneaSistema leerEstado()
-{
-  portENTER_CRITICAL(&mutexIntercambio);
-  const InstantaneaSistema actual = ultimaInstantanea;
-  portEXIT_CRITICAL(&mutexIntercambio);
-  return actual;
-}
-
-void establecerConexion(bool conectado)
-{
-  portENTER_CRITICAL(&mutexIntercambio);
-  comandos.establecerConexion(conectado);
-  portEXIT_CRITICAL(&mutexIntercambio);
-}
-
 void recibirMensaje(char *topic, uint8_t *payload, unsigned int longitud)
 {
   const Evento evento = interpretarComando(topic, payload, longitud);
@@ -40,10 +21,7 @@ void recibirMensaje(char *topic, uint8_t *payload, unsigned int longitud)
     Serial.println("[MQTT] Mensaje rechazado: topic, contenido o longitud invalidos.");
     return;
   }
-  const uint32_t ahora = millis();
-  portENTER_CRITICAL(&mutexIntercambio);
-  const bool aceptado = comandos.agregar(evento, ahora);
-  portEXIT_CRITICAL(&mutexIntercambio);
+  const bool aceptado = entregarComando(evento);
   Serial.printf("[MQTT] %s: %s (no implica ejecucion).\n",
     evento == Evento::COMANDO_INICIAR ? "INICIAR" : "FINALIZAR",
     aceptado ? "entregado a FSM" : "descartado/repetido");
@@ -112,7 +90,7 @@ void tareaComunicacion(void *parametros)
     const bool wifiDisponible = WiFi.status() == WL_CONNECTED;
     if (!wifiDisponible) {
       if (sesionActiva) {
-        establecerConexion(false);
+        establecerConexionMqtt(false);
         sesionActiva = false;
         tcp.stop();
         Serial.println("[MQTT] Sin WiFi. Descartados comandos pendientes.");
@@ -129,7 +107,7 @@ void tareaComunicacion(void *parametros)
       }
       if (!mqtt.connected()) {
         if (sesionActiva) {
-          establecerConexion(false);
+          establecerConexionMqtt(false);
           sesionActiva = false;
           ultimoMqttMs = millis();
           Serial.println("[MQTT] Desconectado. Descartados comandos pendientes.");
@@ -145,11 +123,11 @@ void tareaComunicacion(void *parametros)
           ultimoMqttMs = millis();
           if (conectado) {
             publicaciones = PublicacionesMqtt{};
-            establecerConexion(true);
+            establecerConexionMqtt(true);
             sesionActiva = true;
             Serial.println("[MQTT] Conectado; suscripcion enviada (QoS 0, sesion limpia).");
           } else {
-            establecerConexion(false);
+            establecerConexionMqtt(false);
             tcp.stop();
             Serial.printf("[MQTT] Fallo de conexion/suscripcion: %d\n", mqtt.state());
           }
@@ -157,7 +135,7 @@ void tareaComunicacion(void *parametros)
       }
       if (sesionActiva && (!mqtt.loop() || WiFi.status() != WL_CONNECTED ||
                            !publicarActual(mqtt, publicaciones))) {
-        establecerConexion(false);
+        establecerConexionMqtt(false);
         sesionActiva = false;
         tcp.stop();
         ultimoMqttMs = millis();
@@ -176,21 +154,6 @@ void ejecutarComunicacion(void *parametros)
   vTaskDelete(nullptr);
 }
 } // namespace
-
-void compartirEstado(const InstantaneaSistema &actual)
-{
-  portENTER_CRITICAL(&mutexIntercambio);
-  ultimaInstantanea = actual;
-  portEXIT_CRITICAL(&mutexIntercambio);
-}
-
-Evento tomarComando(uint32_t ahora)
-{
-  portENTER_CRITICAL(&mutexIntercambio);
-  const Evento evento = comandos.tomar(ahora);
-  portEXIT_CRITICAL(&mutexIntercambio);
-  return evento;
-}
 
 bool iniciarComunicacion()
 {

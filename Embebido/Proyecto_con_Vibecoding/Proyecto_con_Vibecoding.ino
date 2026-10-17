@@ -130,17 +130,11 @@ LecturasSensores leerSensores()
 void tareaSensores(void *parametros)
 {
   (void)parametros;
-  BotonAntirrebote boton;
-  uint32_t pulsaciones = 0;
   TickType_t ultimaLectura = xTaskGetTickCount();
   while (true) {
     MensajeSensores mensaje = {};
     mensaje.lecturas = leerSensores();
-    const bool pulsado = boton.actualizar(digitalRead(PIN_BOTON) == LOW, millis());
-    if (pulsado) {
-      ++pulsaciones;
-    }
-    mensaje.pulsaciones = pulsaciones;
+    mensaje.pulsaciones = muestrearPulsador();
     if (xQueueOverwrite(colaEventos, &mensaje) != pdPASS) {
       Serial.println("[ERROR] No se pudo entregar la muestra.");
     }
@@ -156,7 +150,7 @@ void tareaFSM(void *parametros)
   while (true) {
     const bool muestraNueva = xQueueReceive(colaEventos, &mensaje,
       pdMS_TO_TICKS(PERIODO_LECTURA_MS)) == pdTRUE;
-    procesarEntradas(muestraNueva ? &mensaje : nullptr, tomarComando(millis()));
+    procesarEntradas(muestraNueva ? &mensaje : nullptr, tomarComando());
     if (transcurrio(millis(), ultimoLogMs, PERIODO_LOG_MS)) {
       ultimoLogMs = millis();
       mostrarLecturas();
@@ -169,9 +163,15 @@ void tareaFSM(void *parametros)
 void procesarEntradas(const MensajeSensores *mensaje, Evento comando)
 {
   bool finalizadoLocal = false;
+  if (comando == Evento::COMANDO_FINALIZAR && estadoActual == Estado::ESPERA) {
+    // También en espera se cancelan las pulsaciones aceptadas antes de la orden.
+    pulsacionesProcesadas = cortarPulsaciones();
+  }
   if (mensaje != nullptr) {
     sensores = mensaje->lecturas;
-    while (pulsacionesProcesadas != mensaje->pulsaciones) {
+    // Una muestra anterior al corte conserva sus lecturas, pero no retrocede
+    // el contador ni vuelve a ejecutar pulsaciones del ciclo ya finalizado.
+    while (contadorPosterior(mensaje->pulsaciones, pulsacionesProcesadas)) {
       ++pulsacionesProcesadas;
       // FINALIZAR remoto prevalece sobre las pulsaciones de esta iteración.
       if (comando != Evento::COMANDO_FINALIZAR) {
@@ -290,6 +290,10 @@ void cambiarEstado(Estado nuevoEstado)
 {
   if (nuevoEstado == estadoActual) {
     return;
+  }
+  if (nuevoEstado == Estado::ESPERA) {
+    // Incluye eventos aceptados que todavía no se publicaron en colaEventos.
+    pulsacionesProcesadas = cortarPulsaciones();
   }
   if (estadoActual == Estado::ESPERA || nuevoEstado == Estado::ESPERA) {
     lecturaValida = false;

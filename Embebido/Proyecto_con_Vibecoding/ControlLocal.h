@@ -33,6 +33,18 @@ inline bool transcurrio(uint32_t ahora, uint32_t inicio, uint32_t plazo)
   return uint32_t(ahora - inicio) >= plazo;
 }
 
+inline bool contadorPosterior(uint32_t candidato, uint32_t referencia)
+{
+  // shortcut: requiere menos de 2^31 pulsaciones pendientes; ampliar el contador si se supera.
+  const uint32_t diferencia = candidato - referencia;
+  return diferencia != 0 && diferencia < (uint32_t(1) << 31);
+}
+
+inline bool detectarLluvia(int adc, int umbral, bool adcAlto)
+{
+  return adcAlto ? adc >= umbral : adc <= umbral;
+}
+
 struct CondicionEstable {
   bool valor = false;
   bool candidato = false;
@@ -76,9 +88,8 @@ struct CondicionesCiclo {
       ? humedad < Configuracion::UMBRAL_HUMEDO_PCT
       : humedad <= Configuracion::UMBRAL_SECO_PCT;
     seca.actualizar(criterioSeco, ahora);
-    const bool criterioLluvia = Configuracion::LLUVIA_CON_ADC_ALTO
-      ? adcLluvia >= Configuracion::UMBRAL_LLUVIA_ADC
-      : adcLluvia <= Configuracion::UMBRAL_LLUVIA_ADC;
+    const bool criterioLluvia = detectarLluvia(adcLluvia,
+      Configuracion::UMBRAL_LLUVIA_ADC, Configuracion::LLUVIA_CON_ADC_ALTO);
     lluvia.actualizar(criterioLluvia, ahora);
   }
 };

@@ -10,6 +10,7 @@
 extern uint32_t relojPrueba;
 extern int pwmPrueba;
 extern bool tonoPrueba;
+extern bool botonPrueba;
 
 constexpr int INPUT = 0;
 constexpr int OUTPUT = 1;
@@ -27,7 +28,7 @@ inline uint32_t millis() { return relojPrueba; }
 inline void pinMode(int, int) {}
 inline void analogReadResolution(int) {}
 inline int analogRead(int) { return 0; }
-inline int digitalRead(int) { return 1; }
+inline int digitalRead(int) { return botonPrueba ? LOW : 1; }
 inline void analogWrite(int, int valor) { pwmPrueba = valor; }
 inline void tone(int, unsigned int) { tonoPrueba = true; }
 inline void noTone(int) { tonoPrueba = false; }

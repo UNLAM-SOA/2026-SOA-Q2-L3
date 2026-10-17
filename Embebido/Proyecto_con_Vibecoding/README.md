@@ -1,18 +1,20 @@
 # Firmware IA — incremento 2: control local + WiFi/MQTT
 
-Implementación nueva para Arduino-ESP32 y el circuito de [`../diagram.json`](../diagram.json), sin modificar la variante manual ni el esquema. El usuario confirmó compilación, autopruebas, conexión WiFi/MQTT e intercambio bidireccional del incremento 2, además de la regresión de los 16 casos locales. **Matriz I2: 30/33 casos aprobados; pendientes caída WiFi durante ciclo, validación manual del control simultáneo y cliente Android externo. No incluye app Android propia ni completa V2.**
+Implementación nueva para Arduino-ESP32 y el circuito de [`../diagram.json`](../diagram.json), sin modificar la variante manual ni el esquema. El usuario confirmó compilación, autopruebas, intercambio MQTT bidireccional, cliente Android externo y los 16 casos locales del incremento 2 anterior a las correcciones. **Matriz histórica I2: 31/33 aprobados. Después de las correcciones, el usuario reportó una regresión parcial satisfactoria en Wokwi el 17/10/2026: compilación ESP32, arranque, control local, pulsador y MQTT bidireccional. No equivale a repetir ni aprobar toda la matriz. Siguen pendientes caída WiFi durante ciclo, simultaneidad manual exacta y validación física. No incluye app Android propia ni completa V2.**
 
 ## Archivos y dependencias
 
 - `Proyecto_con_Vibecoding.ino`: inicialización, tareas de sensores/FSM, cola y actuadores.
-- `Comunicacion.cpp/.h`: tercera tarea FreeRTOS, WiFi/MQTT e intercambio sincronizado con la FSM.
+- `Comunicacion.cpp/.h`: tercera tarea FreeRTOS y WiFi/MQTT.
+- `Intercambio.cpp/.h`: estado, buzón, reloj y aceptación/corte de pulsaciones bajo el mismo bloqueo, independiente del cliente de red.
 - `ProtocoloMqtt.h`: estados/eventos, validación, buzón de comandos y programación de publicaciones, sin dependencia de Arduino.
 - `Configuracion.h`: GPIO, calibración provisional, umbrales, tiempos y broker/topics.
 - `ConfiguracionWifi.ejemplo.h`: red pública de simulación, sin secretos. El archivo local opcional `ConfiguracionWifi.h` está ignorado por Git.
 - `ControlLocal.h`: cálculos, estabilidad, histéresis, antirrebote y plazo sonoro.
 - `PruebasControl.h` / `PruebasMqtt.h`: autopruebas sin GPIO ni esperas, antes de crear tareas. Una falla detiene el control con actuadores apagados e indica la línea.
 - `pruebas/control_local.cpp`: ejecuta esas autopruebas en una computadora.
-- `pruebas/fsm.cpp` y `pruebas/dobles/`: ejecutan la FSM real con entradas inyectadas, reloj y GPIO sustituidos, sin scheduler ni red.
+- `pruebas/fsm.cpp` y `pruebas/dobles/`: ejecutan la FSM y el intercambio reales con reloj, GPIO y bloqueo sustituidos, sin scheduler ni red.
+- `pruebas/verificar.ps1`: genera copias temporales con ambas polaridades de lluvia y ejecuta las suites en Ubuntu/WSL, sin modificar la configuración original ni copiar credenciales locales.
 
 Se requiere el core **Arduino-ESP32**, sus componentes incluidos Arduino/FreeRTOS/WiFi, y **PubSubClient 2.8**, fijada en `libraries.txt`. `analogWrite()`, `tone()` y `noTone()` son las APIs de actuadores. La preconexión TCP con timeout explícito usa la firma disponible en core 2.0.17 y 3.3.0 (comprobada en sus headers publicados); **eso no sustituye una compilación ESP32**. No se fija una versión del core no probada. Registrar la que utilice Wokwi al compilar.
 
@@ -22,7 +24,7 @@ No hay integración automática con Wokwi en este entorno. Procedimiento para ej
 
 1. Abrir un proyecto Arduino ESP32 en Wokwi, con ESP32 DevKit v1.
 2. Pegar el contenido de `Proyecto_con_Vibecoding.ino` en `sketch.ino`.
-3. Agregar los `.h` versionados y `Comunicacion.cpp` de este directorio, conservando los nombres. Incluir `ConfiguracionWifi.ejemplo.h`; no subir credenciales reales ni el directorio `pruebas/`. Agregar también `libraries.txt`, con `PubSubClient@2.8`.
+3. Agregar los `.h` versionados, `Comunicacion.cpp` e **`Intercambio.cpp`** de este directorio, conservando los nombres. Si se actualiza el proyecto anterior, agregar también **`Intercambio.h`**. Incluir `ConfiguracionWifi.ejemplo.h`; no subir credenciales reales ni el directorio `pruebas/`. Agregar también `libraries.txt`, con `PubSubClient@2.8`.
 4. Reemplazar el contenido del `diagram.json` **del proyecto de simulación** por el contenido exacto de `Embebido/diagram.json`. No editar el esquema del repositorio, conexiones, componentes ni GPIO. No agregar el ejecutable de pruebas a Wokwi.
 5. Iniciar la simulación (▶): Wokwi compila el sketch antes de ejecutarlo. Registrar resultado de compilación y versión del core si está informada por el entorno.
 6. Abrir el monitor serie a 115200. Deben aparecer `[TEST] Control local: OK`, `[TEST] Protocolo MQTT: OK` y el estado inicial `ESPERA`. Luego los intentos WiFi/MQTT. Si falla una autoprueba, no se crean tareas.
@@ -48,14 +50,14 @@ Humedad general = máximo de las dos humedades. Las divisiones enteras truncan h
 ## Estructura académica y concurrencia
 
 - `setup()` crea cola y tres tareas; `loop()` permanece vacío. Sensores y FSM tienen prioridad 2; comunicación, prioridad 1.
-- `tareaSensores()` adquiere entradas cada 50 ms y aplica antirrebote de 40 ms. Un flanco estable de pulsación incrementa un contador; mantener presionado no repite acciones. La liberación también debe estabilizarse antes de otra pulsación.
+- `tareaSensores()` adquiere entradas cada 50 ms. `muestrearPulsador()` lee GPIO 26, aplica antirrebote de 40 ms e incrementa el contador de pulsaciones aceptadas bajo una misma sección crítica breve. Mantener presionado no repite acciones; la liberación también debe estabilizarse antes de otra pulsación.
 - Envía por valor la muestra completa y el contador acumulativo a una cola de longitud 1 mediante `xQueueOverwrite()`. No comparte una estructura mutable de lecturas ni se bloquea esperando espacio.
-- `tareaFSM()` recibe la última muestra, convierte cada pulsación pendiente en `Evento::BOTON_CICLO` y luego procesa las condiciones actuales. Así no se pierde una pulsación aunque su muestra original haya sido sobrescrita, ni se forma una cola de decisiones ambientales antiguas.
+- `tareaFSM()` recibe la última muestra y convierte las pulsaciones nuevas en `Evento::BOTON_CICLO`. Al finalizar un ciclo, el cursor se adelanta al último contador aceptado por sensores, aun si su muestra todavía no fue publicada en la cola. Las muestras atrasadas conservan sus lecturas pero no revierten el cursor ni reinician el ciclo. Se usa orden serial modular, con el límite de menos de 2^31 pulsaciones pendientes. Las anteriores al corte se cancelan deliberadamente, no se reinterpretan como nuevos inicios.
 - A diferencia de la referencia, la clasificación temporal de seco/lluvia y la generación de sus eventos se realizan **en la tarea FSM**, para que el inicio pueda reiniciar la clasificación sin acceso concurrente. Los eventos siguen siendo explícitos (`enum class Evento`) y `ejecutarFSM()` conserva el **switch de estado con switch de evento dentro de cada estado**. No se usa otra arquitectura de FSM.
 - La FSM es la única dueña del estado, filtros del ciclo y actuadores después de iniciar las tareas. `cambiarEstado()` centraliza transiciones, efectos inmediatos y registros.
 - Solo la tarea de comunicación utiliza WiFi, el socket y `PubSubClient`. La FSM intercambia instantáneas y comandos bajo una sección crítica breve: no se hacen llamadas de red, registros ni esperas de FreeRTOS dentro de ella. La tercera tarea aísla las esperas de red; por sí sola no constituye una garantía absoluta contra deadlocks.
-- El buzón remoto tiene capacidad para una orden pendiente. Repeticiones no se acumulan ni rejuvenecen el plazo; `FINALIZAR` reemplaza un `INICIAR` pendiente, nunca al revés. Se descartan órdenes al detectar desconexión y al cumplir 1000 ms sin consumo. No hay persistencia ni reproducción tras reconexión.
-- `INICIAR`/`FINALIZAR` son eventos explícitos en los switch existentes. Iniciar un ciclo activo y finalizar en espera no cambian estado, filtros ni plazo sonoro. En una misma iteración, `FINALIZAR` remoto prevalece y consume las pulsaciones coincidentes para evitar un reinicio inmediato; una finalización local también gana a `INICIAR` remoto.
+- El buzón remoto tiene capacidad para una orden pendiente. Repeticiones no se acumulan ni rejuvenecen el plazo; `FINALIZAR` reemplaza un `INICIAR` pendiente, nunca al revés. Recepción y consumo capturan `millis()` **después de adquirir el bloqueo**: no se compara un comando nuevo con un reloj tomado antes de su recepción. Se descartan órdenes al detectar desconexión y al cumplir 1000 ms sin consumo. No hay persistencia ni reproducción tras reconexión.
+- `INICIAR`/`FINALIZAR` son eventos explícitos en los switch existentes. Iniciar un ciclo activo y finalizar en espera no cambian estado, filtros ni plazo sonoro. Toda finalización local/remota corta las pulsaciones ya aceptadas; `FINALIZAR` en espera también las cancela. El punto de orden es el corte bajo bloqueo: una pulsación aceptada después es nueva y puede iniciar otro ciclo, aunque la actualización visual se complete unas instrucciones después. Una finalización local también gana a `INICIAR` remoto de la misma iteración.
 - Finalizar tiene prioridad sobre las condiciones de la muestra; lluvia confirmada tiene prioridad sobre seco/húmedo. Nuevo ciclo = clasificación húmeda inicial, sin heredar la anterior. Confirmar seco requiere 20 % o menos por 1000 ms; volver a húmedo requiere 25 % o más por 1000 ms. Lluvia y fin de lluvia también requieren 1000 ms.
 - El buzzer se atiende aun cuando venza la espera de recepción. Alterna encendido/apagado cada 1200 ms (seco) o 300 ms (lluvia). Cada entrada a alerta inicia un plazo de 30 s, con silencio persistente al vencer, incluso tras un desborde posterior de `millis()`. Las repeticiones del mismo estado no reinician el plazo.
 - Finalizar apaga actuadores al procesar el evento, sin esperar los 1000 ms de filtrado. No hay `delay()` ni espera activa: solo esperas de FreeRTOS. Con adquisición de 50 ms, la aceptación del pulsador queda cuantizada al muestreo; mantenerlo al menos 150 ms facilita una prueba manual reproducible.
@@ -105,6 +107,15 @@ Para forzar una caída MQTT sin tocar el broker público, conectar **una sola ve
 
 ## Pruebas de lógica en computadora
 
+Procedimiento recomendado desde este directorio (requiere Ubuntu/WSL con `g++`):
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\pruebas\verificar.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\pruebas\verificar.ps1 -Sanitizadores
+```
+
+La política de ejecución se aplica solo a ese proceso; no se cambia la configuración permanente de PowerShell. Cada ejecución compila ambas suites con `LLUVIA_CON_ADC_ALTO=true` y `false` en copias generadas bajo `%LOCALAPPDATA%\Temp\opencode\`. La configuración del repositorio sigue en `true`. El script informa la ruta de artefactos y falla si una compilación o suite falla. No ejecuta Wokwi, FreeRTOS real ni llamadas de red.
+
 Desde este directorio, con `g++` disponible, colocar el ejecutable fuera del repositorio. En el entorno Windows actual se encontró `g++` en Ubuntu/WSL:
 
 ```powershell
@@ -114,15 +125,44 @@ wsl.exe -d Ubuntu --exec g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I prueb
 wsl.exe -d Ubuntu --exec /mnt/c/Users/Mateo/AppData/Local/Temp/opencode/fsm_mqtt_tests
 ```
 
-La ruta de salida es específica de esta computadora; adaptarla en otro entorno. Resultados esperados: `Control local: OK`, `Protocolo MQTT: OK` y `FSM real con dobles de GPIO/red/RTOS: OK`, salida 0. Para ejecutar también con sanitizadores, agregar `'-fsanitize=address,undefined' -fno-omit-frame-pointer` a cada comando de compilación (las comillas evitan que PowerShell interprete la coma). Las pruebas usan los umbrales, sentidos de lluvia y tiempos iniciales acordados; si se modifica esa configuración, revisar también sus expectativas.
+La ruta de salida es específica de esta computadora; adaptarla en otro entorno. Resultados esperados: `Control local: OK`, `Protocolo MQTT: OK`, `FSM real con dobles de GPIO/red/RTOS: OK` e `Intercambio real y carreras con intercalados inyectados: OK`, salida 0. Para ejecutar también con sanitizadores, agregar `'-fsanitize=address,undefined' -fno-omit-frame-pointer` a cada comando de compilación (las comillas evitan que PowerShell interprete la coma). Las autopruebas verifican lluvia en ambos sentidos con fixtures explícitos, independientes de la polaridad elegida para el equipo. Los escenarios FSM usan valores de lluvia/sin lluvia acordes con la configuración activa. Las expectativas temporales conservan los tiempos iniciales acordados.
 
 Cobertura de autopruebas: extremos/rango/calibración invertida de humedad, progreso y PWM; histéresis 20/25, interrupción de estabilidad, reinicio del ciclo, confirmación y fin de lluvia, condiciones simultáneas, rebote/pulsación sostenida/liberación, cadencias, corte a 30 s, reentrada y desborde temporal. También topic/payload inválidos, buzón acotado, prioridad/caducidad/desconexión y programación de publicaciones por ciclo, reconexión y lectura válida.
 
-El segundo ejecutable llama al **switch real de la FSM** y a `procesarEntradas()` del `.ino`, sin duplicar sus reglas. Verifica inicio/finalización idempotentes desde todos los estados, prioridad de lluvia, máximo de humedad, silencio sin nuevas muestras, reentrada, finalizaciones simultáneas, invalidez de lecturas y reinicio de clasificación. **Los dobles no prueban FreeRTOS, exclusión mutua real, periféricos ni el cliente MQTT/TCP. No agregarlos al proyecto Wokwi ni a la compilación ESP32.**
+El segundo ejecutable llama al **switch real de la FSM**, a `procesarEntradas()` del `.ino` y a las funciones reales de `Intercambio.cpp`, sin duplicar sus reglas. Incluye inicio/finalización idempotentes, prioridad de lluvia, máximo de humedad, silencio sin nuevas muestras, reentrada, lectura válida y nuevo ciclo. Inyecta una recepción a t=101 antes de que el consumidor que venía de t=100 adquiera el bloqueo; una muestra B con pulsación pendiente detrás de A; aceptación justo antes del corte; pulsación mantenida y nueva pulsación posterior; finalización con muestras viejas en espera y desborde de contadores. **Los dobles no prueban FreeRTOS, exclusión mutua real, periféricos ni el cliente MQTT/TCP. ASan/UBSan no demuestran ausencia de carreras lógicas. No agregar los dobles al proyecto Wokwi ni a la compilación ESP32.**
+
+### Correcciones del review — 17/10/2026
+
+Antes de corregir se reprodujeron los tres defectos sobre el código de `4be5a33`: pérdida de `FINALIZAR` por tiempo anterior a la recepción; reinicio por muestra B atrasada; autopruebas de control y FSM fallando al invertir la polaridad de lluvia.
+
+1. **Reloj/buzón:** `tomarComando()` ya no acepta un tiempo obtenido por el llamador. Tanto la recepción como el consumo muestrean el reloj dentro del bloqueo de `Intercambio.cpp`; se conserva la resta modular y la caducidad real.
+2. **Pulsaciones:** lectura digital, antirrebote y registro del contador se ordenan bajo el mismo bloqueo que el corte de finalización. La FSM descarta todos los eventos aceptados antes de ese corte, incluso muestras pendientes de entrega; una pulsación posterior sigue operativa. No se depende de vaciar la cola ni de acertar manualmente una ventana de 50 ms. El orden serial impide recorrer contadores hacia atrás ante muestras anteriores al corte.
+3. **Lluvia:** se comparte `detectarLluvia()` entre producción y autopruebas y se prueban ambos sentidos sin cambiar la calibración del repositorio. El script compila y ejecuta las suites completas con cada valor de `LLUVIA_CON_ADC_ALTO`.
+
+**Resultado host:** 2 suites × 2 polaridades × 2 modos (normal y ASan/UBSan), todo aprobado. **Verificación posterior en Wokwi:** compilación ESP32 y regresión parcial confirmadas por el usuario el 17/10/2026, con el alcance detallado a continuación. Los checks históricos no se trasladan al firmware corregido: los escenarios no incluidos en ese reporte no se consideran repetidos. No se declara medida la frecuencia de las carreras con el scheduler real ni se da por terminada la validación física.
+
+### Regresión parcial posterior al review — reporte del usuario, 17/10/2026
+
+**Entorno: ESP32 simulado en Wokwi, con el firmware posterior a las correcciones.** Esta ejecución fue realizada y confirmada por el usuario, no por el agente. Se registra separada de las pruebas host y de la matriz histórica previa a las correcciones.
+
+| Comprobación en esta ejecución | Resultado reportado por el usuario |
+| --- | --- |
+| Compilación ESP32 | Correcta en Wokwi. |
+| Arranque | `[TEST] Control local: OK`, `[TEST] Protocolo MQTT: OK` y estado inicial `ESPERA`. |
+| Monitoreo local | Continúa funcionando. No se informó una repetición individual de todos los escenarios de sensores, umbrales y alertas. |
+| Finalización y nuevo inicio local | El pulsador finaliza y una nueva pulsación inicia correctamente otro ciclo. |
+| Pulsador durante tráfico MQTT | Permite finalizar; el usuario no observó comportamientos inesperados. Esto no demuestra simultaneidad exacta de dos entradas en una iteración. |
+| MQTT bidireccional, QoS 0 | `INICIAR` produjo estado activo y publicación de humedad; `FINALIZAR` produjo `ESPERA`. |
+
+**Observación global del usuario:** no detectó fallos en lo ensayado. Informó capturas del arranque, FSM y mensajes MQTT adjuntas en la conversación; no se agregan rutas, enlaces ni archivos de evidencia que no estén disponibles en el repositorio.
+
+**Alcance del cierre documental:** se registra satisfactoriamente este reporte parcial, no una aprobación completa de la matriz funcional ni una validación con hardware real. No se infiere que se hayan repetido lluvia e histéresis en todos sus límites, cadencias/plazo sonoro, validación de órdenes, fallas/reconexiones de red, ambas polaridades en Wokwi u otros escenarios no confirmados en esta ejecución. Tampoco se demuestra ausencia de carreras para todos los intercalados posibles.
+
+**Pendientes explícitos:** caída de WiFi durante un ciclo, simultaneidad manual exacta y validación física (montaje, calibración y seguridad del buzzer). El resto de la matriz conserva sus resultados históricos, sin convertirlos en aprobaciones posteriores a las correcciones.
 
 ## Matriz de aceptación y regresión en Wokwi
 
-Se conserva **una sola columna** de validación. `☑ I1`: probado y aprobado por el usuario en el incremento 1. `☑ I2`: aprobado por el usuario al repetir/probar con el firmware de comunicación, según su reporte del 16/10/2026. `☐ I2`: pendiente o resultado no confirmado. Las marcas de I1 son históricas, **no aprueban automáticamente I2**. Registrar condiciones, tiempos/logs y evidencia real; no marcar Wokwi por inspección del código ni por autopruebas de computadora.
+Se conserva **una sola columna** de validación. `☑ I1`: aprobado por el usuario en el incremento 1. `☑ I2`: aprobado por el usuario con el firmware previo a las correcciones (`4be5a33`), según su reporte del 16/10/2026 y la confirmación posterior de Android externo. `☐ I2`: pendiente o resultado no confirmado. **Estas marcas son históricas: no aprueban automáticamente la revisión corregida.** La regresión parcial posterior del 17/10/2026 se registra en su propia sección y no modifica estas casillas ni acredita todos los casos. Registrar condiciones, tiempos/logs y evidencia real; no marcar Wokwi por inspección ni por pruebas host.
 
 | Caso | Acción y resultado esperado | Validación |
 | --- | --- | --- |
@@ -158,15 +198,15 @@ Se conserva **una sola columna** de validación. `☑ I1`: probado y aprobado po
 | Reinicio conectado | Reiniciar durante alerta: cliente recibe `ESPERA` al reconectar; no reanuda ni publica humedad del ciclo anterior. | ☑ I2 |
 | Control local/remoto simultáneo | Finalización gana al inicio en la misma iteración de control. Cubierto por test host; prueba manual no confirmada, ver procedimiento debajo. | ☐ I2 |
 | No retenidos | Con Retain desactivado, un cliente recién suscrito espera una publicación nueva; no se presentan publicaciones como historia del ciclo. Revisar retenidos ajenos antes de empezar. | ☑ I2 |
-| Cliente Android externo | Repetir envío/recepción bidireccional con app de Play Store en teléfono y registrar herramienta/versión. | ☐ I2 |
+| Cliente Android externo | Envío/recepción bidireccional en teléfono confirmado por el usuario; nombre y versión de la app pendientes de registrar. | ☑ I2 |
 
-El pulsador del esquema tiene `bounce: "0"`: la simulación del pulsador no demuestra rechazo de rebote. Las autopruebas inyectan rebote temporal sintético sin cambiar el esquema. Los resultados de ambas columnas son los reportados por el usuario, no ejecuciones de Wokwi realizadas por el agente. Se confirmó la regresión local completa con el firmware de comunicación.
+El pulsador del esquema tiene `bounce: "0"`: la simulación del pulsador no demuestra rechazo de rebote. Las autopruebas inyectan rebote temporal sintético sin cambiar el esquema. Las marcas de I1/I2 son los resultados reportados por el usuario, no ejecuciones de Wokwi realizadas por el agente. La regresión local completa corresponde al firmware de comunicación **anterior a las correcciones**; la ejecución posterior del 17/10/2026 tiene únicamente el alcance parcial descrito arriba.
 
 ### Pendientes del incremento 2
 
 - **Control simultáneo:** el objetivo es comprobar que una finalización no sea anulada por un inicio recibido en la misma iteración. Desde un ciclo activo, intentar pulsar CICLO para finalizar al mismo tiempo que otro operador publica `INICIAR`; si coinciden en la misma iteración, debe terminar en `ESPERA`. También, desde espera, intentar iniciar con CICLO mientras se recibe `FINALIZAR`: si coinciden, permanece en espera. Usar QoS 0, Retain desactivado y una sola pulsación/orden por intento, sin publicaciones periódicas automáticas.
-- **Límite de la prueba manual:** la recepción por red, el antirrebote y el muestreo de 50 ms impiden garantizar coincidencia con la mano. Si el inicio se procesa después de una finalización ya concluida, iniciar otro ciclo es válido; no es una falla de prioridad. Comparar logs de recepción y transiciones, sin asumir que prueban el mismo tick. `pruebas/fsm.cpp` inyecta ambas entradas en una misma llamada a `procesarEntradas()` y comprueba la prioridad de forma determinista; no equivale a una prueba de concurrencia real del scheduler. La casilla Wokwi queda pendiente hasta aclarar el resultado, no se marcó el “Correcto?” del reporte.
-- **Cliente Android externo:** instalar una app cliente MQTT desde Play Store (por ejemplo, IoT MQTT Panel), con broker `broker.emqx.io:1883`, TCP sin TLS/autenticación, sesión limpia y clientId propio, distinto del ESP32 y del cliente de computadora. Suscribirse a estado/sensor y publicar `INICIAR`/`FINALIZAR` en comando, QoS 0 y Retain desactivado. Confirmar recepción de estado y humedad, y finalización real en Wokwi. Registrar nombre y versión de la app; esta prueba no sustituye la futura app propia ni la conectividad del circuito físico.
+- **Límite de la prueba manual:** la recepción por red, el antirrebote y el muestreo de 50 ms impiden garantizar coincidencia con la mano. Si el inicio se procesa después de una finalización ya concluida, iniciar otro ciclo es válido; no es una falla de prioridad. Comparar logs sin asumir que prueban el mismo tick. Los tests host cubren coincidencia en una iteración y los intercalados del review; no equivalen a concurrencia real del scheduler. Por decisión del usuario la prueba manual queda pendiente, no se exige acertar esa ventana para ejecutar las regresiones automatizadas.
+- **Cliente Android externo:** validado y funcionando según el usuario. Falta registrar nombre y versión de la app. Esta aprobación corresponde al firmware previo a las correcciones, no sustituye la futura app propia ni la conectividad del circuito físico, y requiere regresión con el firmware actualizado.
 - **Caída WiFi durante ciclo:** diferida por falta de un mecanismo controlable en el entorno de simulación utilizado. No se marca aprobada por haber probado caída MQTT o arranque sin red. Para completarla en hardware: iniciar ciclo en una red de prueba controlada, interrumpir su punto de acceso sin apagar el ESP32, verificar pulsador/sensores/LED y corte del buzzer, restaurar la red y comprobar estado actual sin reinicio ni rearmado de la alerta. Preparar antes credenciales locales, calibración y seguridad del circuito. No interrumpir una red compartida sin autorización.
 
 ## Registro de verificación de este incremento
@@ -180,12 +220,17 @@ Entorno comprobado el 15/10/2026: Windows, Ubuntu/WSL, `g++ (Ubuntu 15.2.0-16ubu
 | Autopruebas con AddressSanitizer y UndefinedBehaviorSanitizer | Ejecutadas: `Control local: OK`, sin diagnósticos |
 | FSM real con dobles de GPIO/red/RTOS, C++11 y sanitizadores | Ejecutada: `FSM real con dobles de GPIO/red/RTOS: OK`, sin diagnósticos |
 | Autopruebas del protocolo y programación MQTT, C++11 y sanitizadores | Ejecutadas: `Protocolo MQTT: OK`, sin diagnósticos |
+| Correcciones del review, 17/10/2026: control/protocolo y FSM/intercambio real con dobles | Ejecutadas con lluvia ADC alto y bajo, normales y ASan/UBSan: 8/8 combinaciones aprobadas |
+| Compilación ESP32 y arranque después de las correcciones, 17/10/2026 | Correctos según el usuario en Wokwi; ambas autopruebas OK y estado inicial `ESPERA` |
+| Regresión parcial Wokwi/MQTT después de las correcciones, 17/10/2026 | Usuario confirmó monitoreo local, finalización/reinicio por pulsador, finalización con tráfico MQTT e intercambio `INICIAR`/humedad/`FINALIZAR`/`ESPERA`, QoS 0; sin fallos observados en lo ensayado |
+| Matriz completa después de las correcciones | **No aprobada en su totalidad**: esta ejecución fue parcial; no se trasladan las marcas históricas ni se infieren casos no reportados |
 | Compilación del firmware en Wokwi, incremento 1 | Confirmada por el usuario, junto con autopruebas OK en terminal |
 | Matriz local en Wokwi, incremento 1 | 16/16 casos aprobados por el usuario; ver columna de validación |
-| Compilación ESP32 y autopruebas en Wokwi, incremento 2 | Confirmadas por el usuario, con logs de arranque/conexión |
-| Regresión local en Wokwi, incremento 2 | 16/16 casos aprobados por el usuario el 16/10/2026 |
-| MQTT / WiFi, incremento 2 | Intercambio bidireccional, validación, publicaciones, caída/reconexión MQTT y arranque sin red aprobados por el usuario; caída WiFi durante ciclo y cliente Android externo pendientes |
-| Matriz completa, incremento 2 | 30/33 aprobados por el usuario; control simultáneo manual no confirmado, caída WiFi diferida por entorno y cliente Android pendiente |
+| Compilación ESP32 y autopruebas en Wokwi, incremento 2 previo a las correcciones | Confirmadas por el usuario, con logs de arranque/conexión |
+| Regresión local en Wokwi, incremento 2 previo a las correcciones | 16/16 casos aprobados por el usuario el 16/10/2026 |
+| MQTT / WiFi, incremento 2 previo a las correcciones | Intercambio bidireccional, cliente Android externo, validación, publicaciones, caída/reconexión MQTT y arranque sin red aprobados por el usuario; caída WiFi durante ciclo pendiente |
+| Matriz histórica, incremento 2 previo a las correcciones | 31/33 aprobados por el usuario; control simultáneo manual y caída WiFi diferidos. Nombre/versión del cliente Android sin informar |
+| Caída WiFi durante ciclo y simultaneidad manual exacta | **Pendientes**; finalizar mientras hay tráfico MQTT no acredita estas dos condiciones |
 | Pruebas físicas | **Pendientes**, no inferidas de simulación ni autopruebas |
 
 ### Diferencias respecto de la referencia manual

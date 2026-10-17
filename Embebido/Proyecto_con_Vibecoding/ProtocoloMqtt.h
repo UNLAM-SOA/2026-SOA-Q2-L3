@@ -55,7 +55,8 @@ inline Evento interpretarComando(const char *topic, const uint8_t *datos, size_t
   return Evento::NINGUNO;
 }
 
-// Sus accesos concurrentes se protegen fuera de esta lógica portable.
+// Acceso y captura del reloj se protegen juntos fuera de esta lógica portable;
+// el tiempo de consumo no puede haberse capturado antes de adquirir el bloqueo.
 struct BuzonComandos {
   bool conectado = false;
   Evento pendiente = Evento::NINGUNO;
