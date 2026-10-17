@@ -1,8 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="app_name">Ropa seca IA</string>
     <string name="descripcion">Sistema de detección de ropa seca</string>
-    <string name="inicio_estado">Estación: conexión todavía no disponible</string>
-    <string name="sin_mqtt">La comunicación MQTT no está implementada en este incremento. No se consulta ni controla la estación.</string>
     <string name="monitoreo">Monitoreo</string>
     <string name="condiciones">Condiciones de secado</string>
     <string name="conexion">Conexión</string>
@@ -14,7 +12,7 @@
     <string name="lluvia_sin_datos">Lluvia: sin datos para confirmar su presencia o ausencia.</string>
     <string name="seca_sin_datos">Ropa seca: sin datos para confirmar la condición.</string>
     <string name="control_ciclo">Iniciar / finalizar ciclo</string>
-    <string name="control_no_disponible">Control deshabilitado: se necesita comunicación y un estado confirmado. Para operar la estación, usá su pulsador físico.</string>
+    <string name="control_no_disponible">Control deshabilitado: requiere comunicación y estado vigentes, sin otro comando pendiente. Para operar la estación, usá su pulsador físico.</string>
     <string name="progreso_aclaracion">El progreso no representa tiempo restante. La humedad es un índice estimado de conductividad.</string>
     <string name="acercar_telefono">Acercá el teléfono al lugar donde está la ropa, sin cubrir su sensor de luz.</string>
     <string name="lux_sin_datos">Iluminación: sin datos</string>
@@ -29,14 +27,43 @@
     <string name="luz_excelente">Excelente iluminación</string>
     <string name="luz_aclaracion">Orientación basada solo en la iluminación: no estima la duración del secado ni modifica el ESP32. Funciona sin MQTT.</string>
     <string name="broker_titulo">Broker MQTT</string>
-    <string name="broker_estado">Conexión no implementada; disponibilidad no comprobada.</string>
     <string name="estacion_titulo">Estación ESP32</string>
-    <string name="estacion_estado">Comunicación desconocida; sin estados recibidos.</string>
     <string name="antiguedad_estado">Antigüedad del último estado válido: sin datos</string>
     <string name="separacion_conexion">La conexión al broker no confirma la comunicación con la estación.</string>
     <string name="configuracion_titulo">Contrato del firmware (informativo)</string>
-    <string name="broker_config" translatable="false">broker.emqx.io:1883</string>
     <string name="transporte">MQTT sobre TCP, sin autenticación ni cifrado. Broker público: solo uso académico, sin datos sensibles.</string>
-    <string name="topics_config" translatable="false">unlam/soa/grupo3/lavadero-ia/comando\nunlam/soa/grupo3/lavadero-ia/estado\nunlam/soa/grupo3/lavadero-ia/sensor</string>
     <string name="mensajes_config" formatted="false">Comandos: INICIAR / FINALIZAR\nEstados: ESPERA / MONITOREANDO_SECADO / ROPA_SECA / LLUVIA\nSensor: humedad general, entero de 0 a 100 sin %\nQoS 0, mensajes no retenidos.</string>
+    <string name="broker_desconectado">Broker desconectado; reintento automático con la app visible.</string>
+    <string name="broker_conectado">Broker conectado y suscripciones confirmadas.</string>
+    <string name="estacion_comunicando">Estación con comunicación vigente.</string>
+    <string name="estacion_sin_comunicacion">Estación sin comunicación confirmada: esperando un estado válido reciente.</string>
+    <string name="condicion_desconocida">Condición actual desconocida. No hay un estado vigente confirmado.</string>
+    <string name="aviso_lluvia">Lluvia detectada por la estación. Protegé la ropa.</string>
+    <string name="aviso_seca">La estación informa ropa seca. Retirá la ropa y finalizá el ciclo.</string>
+    <string name="aviso_espera">Estación en espera. Iniciá el ciclo desde Monitoreo cuando el control esté disponible.</string>
+    <string name="aviso_monitoreo">La estación está monitoreando el secado.</string>
+    <string name="sin_comandos">Sin comandos pendientes.</string>
+    <string name="comando_pendiente">Esperando confirmación del comando por estado de la estación…</string>
+    <string name="comando_preparando">Preparando la publicación del comando…</string>
+    <string name="comando_confirmado">Último comando: confirmado por estado observado.</string>
+    <string name="inicio_no_confirmado">No se pudo confirmar el inicio. El comando podría haberse ejecutado; verificá el estado de la estación.</string>
+    <string name="fin_no_confirmado">No se pudo confirmar la finalización. El comando podría haberse ejecutado; podés usar el pulsador físico para finalizar si el ciclo continúa activo.</string>
+    <string name="sin_datos">Sin datos</string>
+    <string name="hace_segundos">Hace %1$d s</string>
+    <string name="edad_lectura">Antigüedad de lectura: %1$s</string>
+    <string name="edad_estado">Antigüedad del último estado válido: %1$s</string>
+    <string name="estado_espera">En espera</string>
+    <string name="estado_monitoreo">Monitoreando secado</string>
+    <string name="estado_seca">Ropa seca</string>
+    <string name="estado_lluvia">Lluvia</string>
+    <string name="estado_actual">Estado: %1$s</string>
+    <string name="estado_anterior">Último estado (desactualizado): %1$s</string>
+    <string name="iniciar">Iniciar ciclo</string>
+    <string name="finalizar">Finalizar ciclo</string>
+    <string name="control_activo">Podés finalizar el ciclo. Al minimizar la app, la estación continúa funcionando.</string>
+    <string name="humedad_actual">Humedad general: %1$d %%</string>
+    <string name="humedad_anterior">Última humedad (desactualizada): %1$d %%</string>
+    <string name="progreso_actual">Progreso de secado: %1$d %%</string>
+    <string name="sin_alerta_lluvia">Sin alerta de lluvia comunicada.</string>
+    <string name="sin_alerta_seca">Sin alerta de ropa seca comunicada.</string>
 </resources>

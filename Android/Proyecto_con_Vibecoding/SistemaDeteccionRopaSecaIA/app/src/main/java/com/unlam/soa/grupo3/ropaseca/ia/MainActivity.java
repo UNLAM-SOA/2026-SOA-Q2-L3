@@ -3,9 +3,7 @@ package com.unlam.soa.grupo3.ropaseca.ia;
 import android.os.Bundle;
 import android.content.Intent;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends EstacionActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -6,9 +6,8 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
 
-public class CondicionesActivity extends AppCompatActivity implements SensorEventListener {
+public class CondicionesActivity extends EstacionActivity implements SensorEventListener {
     private SensorManager sensorManager;
     private Sensor sensorLuz;
     private TextView lectura;

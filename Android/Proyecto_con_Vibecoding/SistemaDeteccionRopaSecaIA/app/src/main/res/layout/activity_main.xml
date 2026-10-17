@@ -6,8 +6,7 @@
         android:orientation="vertical" android:padding="24dp">
         <TextView style="@style/Titulo" android:text="@string/app_name" />
         <TextView style="@style/Texto" android:text="@string/descripcion" />
-        <TextView android:id="@+id/tvEstadoConexion" style="@style/Texto" android:text="@string/inicio_estado" />
-        <TextView style="@style/Texto" android:text="@string/sin_mqtt" />
+        <include layout="@layout/estado_compartido" />
         <Button android:id="@+id/btnMonitoreo" style="@style/Boton" android:text="@string/monitoreo" />
         <Button android:id="@+id/btnCondiciones" style="@style/Boton" android:text="@string/condiciones" />
         <Button android:id="@+id/btnConexion" style="@style/Boton" android:text="@string/conexion" />

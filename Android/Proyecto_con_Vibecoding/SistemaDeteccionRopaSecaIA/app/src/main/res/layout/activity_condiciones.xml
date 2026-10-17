@@ -5,6 +5,7 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:padding="24dp">
         <TextView style="@style/Titulo" android:text="@string/condiciones" />
+        <include layout="@layout/estado_compartido" />
         <TextView style="@style/Texto" android:text="@string/acercar_telefono" />
         <TextView android:id="@+id/tvLux" style="@style/Texto" android:text="@string/lux_sin_datos" />
         <TextView android:id="@+id/tvClasificacion" style="@style/Texto" android:text="@string/esperando_luz" />

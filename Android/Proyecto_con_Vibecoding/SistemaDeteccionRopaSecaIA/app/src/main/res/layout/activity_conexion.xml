@@ -5,16 +5,17 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:padding="24dp">
         <TextView style="@style/Titulo" android:text="@string/conexion" />
+        <include layout="@layout/estado_compartido" />
         <TextView style="@style/Titulo" android:text="@string/broker_titulo" />
-        <TextView android:id="@+id/tvBroker" style="@style/Texto" android:text="@string/broker_estado" />
+        <TextView android:id="@+id/tvBroker" style="@style/Texto" android:text="@string/broker_desconectado" />
         <TextView style="@style/Titulo" android:text="@string/estacion_titulo" />
-        <TextView android:id="@+id/tvEstacion" style="@style/Texto" android:text="@string/estacion_estado" />
+        <TextView android:id="@+id/tvEstacion" style="@style/Texto" android:text="@string/estacion_sin_comunicacion" />
         <TextView android:id="@+id/tvUltimoEstado" style="@style/Texto" android:text="@string/antiguedad_estado" />
         <TextView style="@style/Texto" android:text="@string/separacion_conexion" />
         <TextView style="@style/Titulo" android:text="@string/configuracion_titulo" />
-        <TextView style="@style/Texto" android:text="@string/broker_config" android:textIsSelectable="true" />
+        <TextView android:id="@+id/tvBrokerConfig" style="@style/Texto" android:textIsSelectable="true" />
         <TextView style="@style/Texto" android:text="@string/transporte" />
-        <TextView style="@style/Texto" android:text="@string/topics_config" android:textIsSelectable="true" />
+        <TextView android:id="@+id/tvTopicsConfig" style="@style/Texto" android:textIsSelectable="true" />
         <TextView style="@style/Texto" android:text="@string/mensajes_config" />
         <Button android:id="@+id/btnVolver" style="@style/Boton" android:text="@string/volver" />
     </LinearLayout>
