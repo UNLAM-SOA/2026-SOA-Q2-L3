@@ -2,6 +2,8 @@
 
 Implementación nueva para Arduino-ESP32 y el circuito de [`../diagram.json`](../diagram.json), sin modificar la variante manual ni el esquema. El usuario confirmó compilación, autopruebas, intercambio MQTT bidireccional, cliente Android externo y los 16 casos locales del incremento 2 anterior a las correcciones. **Matriz histórica I2: 31/33 aprobados. Después de las correcciones, el usuario reportó una regresión parcial satisfactoria en Wokwi el 17/10/2026: compilación ESP32, arranque, control local, pulsador y MQTT bidireccional. No equivale a repetir ni aprobar toda la matriz. Siguen pendientes caída WiFi durante ciclo, simultaneidad manual exacta y validación física. No incluye app Android propia ni completa V2.**
 
+**Implementación cerrada por indicación del usuario, con la limitación temporal de Wokwi indicada abajo; aceptación completa y validación física pendientes.**
+
 ## Archivos y dependencias
 
 - `Proyecto_con_Vibecoding.ino`: inicialización, tareas de sensores/FSM, cola y actuadores.
@@ -80,11 +82,17 @@ Broker inicial: `broker.emqx.io:1883`, TCP sin autenticación ni cifrado. Topics
 - Estado al conectar/reconectar, al cambiar (la tarea de red toma la situación vigente) y cada 5 s incluso en espera. No se encolan estados históricos durante una caída.
 - Humedad solo durante ciclo activo, al tener lectura válida al iniciar/reconectar y luego cada 5 s. Cada nuevo ciclo invalida la lectura anterior hasta recibir una muestra; en espera no se publica humedad. La captura del estado y la humedad está sincronizada, sin lecturas parciales entre tareas.
 - Validación por topic exacto, longitud y bytes exactos del comando; se rechazan vacíos, espacios, saltos de línea, minúsculas, nulos incrustados y mensajes desconocidos. No se construye un `String` con datos recibidos.
-- Reintento WiFi y MQTT cada 5 s; no hay bucles propios de espera de conexión. El intento TCP usa 1500 ms y la espera MQTT 1 s, con keepalive de 5 s. **No son un límite total de toda operación:** DNS, escrituras y recepción de bytes sucesivos pueden esperar aparte dentro de las bibliotecas. Por eso se ejecutan en la tarea de menor prioridad, sin mantener el bloqueo compartido.
+- Reintento WiFi y MQTT cada 5 s; no hay bucles propios de espera de conexión. El intento TCP usa 1500 ms y la espera MQTT 1 s, con keepalive de 30 s. **No son un límite total de toda operación:** DNS, escrituras y recepción de bytes sucesivos pueden esperar aparte dentro de las bibliotecas. Por eso se ejecutan en la tarea de menor prioridad, sin mantener el bloqueo compartido.
 - Una desconexión puede tardar en detectarse; se vacía el buzón cuando se detecta, no en un instante de pérdida física que el firmware aún desconoce. Reconectar conserva ciclo y plazo sonoro; reiniciar vuelve a espera.
 - `subscribe()` exitoso indica envío de la suscripción, no confirmación de autorización del broker; la prueba real requiere recibir un comando. `publish()` exitoso tampoco garantiza recepción por Android (QoS 0).
 
 **Seguridad y comandos retenidos:** es un broker público: terceros pueden leer/publicar en los topics. No enviar datos sensibles. Los emisores deben tener **Retain desactivado y no guardar órdenes para reenviarlas al reconectar**. PubSubClient 2.8 no expone el indicador RETAIN al callback: no se afirma que el receptor distinga un comando retenido accidental de uno nuevo. Una sesión limpia no elimina retenidos. Si algún cliente dejó una orden retenida, eliminarla en el broker desde ese cliente antes de iniciar/reconectar el ESP32. No se modificó la biblioteca ni se agregó una falsa garantía de autenticidad.
+
+### Limitación temporal de Wokwi — 17/10/2026
+
+Medición asistida con serie, MQTT y PCAP (90 s en espera → 120 s de monitoreo → 90 s en espera): las publicaciones mantuvieron ≈5000 ms de `millis()`, pero transcurrieron ≈7,4 s reales en espera y ≈16,2 s en monitoreo (velocidad efectiva ≈68 % y ≈31 %). Con keepalive aumentado de 5 a **30 s**, no se reprodujeron las desconexiones en los ensayos registrados; inicio y finalización quedaron confirmados. El mayor keepalive puede demorar la detección de pérdidas reales.
+
+Android puede vencer su vigencia de **15 s reales** y bloquear brevemente el control aunque MQTT siga conectado. Se acepta esta limitación del simulador para cerrar la implementación, sin aumentar los plazos de Android para ocultarla. Quedan pendientes investigar la carga del monitoreo y validar tiempos en hardware; este cierre no aprueba toda la matriz ni constituye validación física.
 
 ### Cliente externo para las pruebas
 

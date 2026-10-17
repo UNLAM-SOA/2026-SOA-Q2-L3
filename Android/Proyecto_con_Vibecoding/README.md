@@ -2,7 +2,7 @@
 
 Aplicación implementada sobre el esqueleto del usuario en `SistemaDeteccionRopaSecaIA/`, con Java, layouts XML y cuatro Activities reales. El incremento 2 agrega MQTT y control remoto. No se modificaron firmware, esquema, variante manual, versiones de herramientas ni applicationId (`com.unlam.soa.grupo3.ropaseca.ia`). Se agregó únicamente la dependencia de transporte Paho Java 1.2.5, sin el servicio Android de Paho.
 
-**Incremento 1 cerrado por aceptación del usuario.** Tras la corrección mínima de recorte, el usuario confirmó que el defecto observado quedó resuelto sin regresiones en las pruebas realizadas. **Incremento 2 no aceptado por completo:** los dos defectos de ordenamiento local se corrigieron con regresiones locales y el reviewer comprobó posteriormente integración app ↔ firmware IA en Wokwi, sin nuevos defectos de Android en los escenarios ensayados. Restan casos de segundo plano con comando pendiente, transiciones de alerta/deduplicación prolongada y las comprobaciones complementarias indicadas al final. La integración con simulación no valida el circuito físico.
+**Incremento 1 cerrado por aceptación del usuario.** Tras la corrección mínima de recorte, el usuario confirmó que el defecto observado quedó resuelto sin regresiones en las pruebas realizadas. **Incremento 2: implementación cerrada por indicación del usuario; aceptación completa y validación física pendientes.** Los dos defectos de ordenamiento local se corrigieron con regresiones locales y el reviewer comprobó posteriormente integración app ↔ firmware IA en Wokwi, sin nuevos defectos de Android en los escenarios ensayados. Restan las comprobaciones complementarias indicadas al final. La integración con simulación no valida el circuito físico.
 
 ## Uso y decisiones
 
@@ -119,13 +119,19 @@ Evidencia comunicada por el usuario, obtenida por el reviewer mediante **ADB y M
 | Regresión visual | Monitoreo horizontal con fuente al 200 %: regreso alcanzable y sin invasión de barras en lo observado |
 | Comandos MQTT observados | Exactos, QoS 0 y no retenidos |
 
-**Riesgo operativo observado:** Wokwi presentó desconexiones intermitentes. Una finalización no pudo confirmarse; Android informó la incertidumbre y ofreció el pulsador físico. Una prueba posterior sí terminó en `ESPERA`. El reporte no atribuye esa pérdida a un defecto de Android ni justifica cambiar el firmware. No se transforma el intento no confirmado en un éxito ni en prueba de que la orden no se ejecutó.
+**Riesgo operativo observado en la revisión inicial:** Wokwi presentó desconexiones intermitentes. Una finalización no pudo confirmarse; Android informó la incertidumbre y ofreció el pulsador físico. Una prueba posterior sí terminó en `ESPERA`. El reporte no atribuye esa pérdida a un defecto de Android ni justifica cambiar el firmware. No se transforma el intento no confirmado en un éxito ni en prueba de que la orden no se ejecutó.
 
 **Estado al terminar:** estación confirmada en `ESPERA` y ajustes temporales del teléfono restaurados, según el reviewer.
 
 Capturas locales: `C:\Users\Mateo\AppData\Local\Temp\opencode\ropa-i2-*.png`. Se verificó la existencia de archivos con ese patrón al actualizar este README; no se realizó una nueva evaluación independiente de su contenido ni se copiaron al repositorio. Ejemplos: `ropa-i2-finalizar-rotacion.png`, `ropa-i2-reanudacion-wifi-desconectado.png`, `ropa-i2-reanudacion-wifi-recuperado.png`, `ropa-i2-monitoreo-horizontal-200-abajo.png` y capturas de lluvia/ropa seca en las cuatro pantallas. La ruta es evidencia temporal local, no un enlace publicado ni un archivo versionado; conservar las capturas fuera de la carpeta temporal si se necesitan para la entrega.
 
 **Límite de esta aprobación parcial:** acredita integración con ESP32 simulado en los casos anteriores, no toda la matriz ni validación física. Mostrar la condición en cada Activity no demuestra todas las transiciones con cada una en primer plano ni una observación prolongada de deduplicación por heartbeat. Rotar con una orden pendiente no acredita pasar a segundo plano durante esa espera. Cortar WiFi del teléfono tampoco acredita cortar WiFi del ESP32, perder solo presencia de estación manteniendo el broker conectado o reiniciar el firmware. Los pendientes vigentes se enumeran al final.
+
+### Limitación temporal de Wokwi
+
+Según la medición posterior del reviewer del embebido comunicada por el usuario, el firmware publicó cada ≈5000 ms de `millis()`, pero Wokwi avanzó al ≈68 % en espera (≈7,4 s reales entre estados) y ≈31 % en monitoreo (≈16,2 s). El PCAP de ese ensayo mostró una sola conexión MQTT, sin cierres ni reconexiones, con keepalive de 30 s.
+
+Android mantiene la vigencia de **15 s reales**: puede marcar datos desactualizados y bloquear el control aunque MQTT siga conectado. No se aumenta ese plazo para ocultar la ralentización. Esta limitación no bloquea el cierre de la implementación Android; quedan pendientes investigar la carga del monitoreo en Wokwi y validar tiempos en el ESP32 real con el montaje preparado de forma segura. No se da por cerrado el review ni la validación temporal o física.
 
 ## Correcciones del review del incremento 2 — 17/10/2026
 

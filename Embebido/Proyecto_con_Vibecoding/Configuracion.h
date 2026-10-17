@@ -54,7 +54,7 @@ constexpr uint32_t PERIODO_COMUNICACION_MS = 50;
 constexpr uint32_t VIGENCIA_COMANDO_MS = 1000;
 constexpr int32_t TIMEOUT_TCP_MS = 1500;
 constexpr uint16_t TIMEOUT_MQTT_S = 1;
-constexpr uint16_t KEEPALIVE_MQTT_S = 5;
+constexpr uint16_t KEEPALIVE_MQTT_S = 30;
 constexpr uint16_t BUFFER_MQTT_BYTES = 256;
 
 constexpr bool calibracionValida(CalibracionBroche c)
