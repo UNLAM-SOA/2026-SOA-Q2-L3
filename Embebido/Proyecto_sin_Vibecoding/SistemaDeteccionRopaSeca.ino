@@ -67,8 +67,8 @@ constexpr unsigned int FRECUENCIA_BUZZER_LLUVIA_HZ = 1600;
 // WIFI
 // ======================================================
 
-const char* WIFI_SSID = "SO Avanzados";
-const char* WIFI_PASSWORD = "SOA.2019";
+const char* WIFI_SSID = "WIFI";
+const char* WIFI_PASSWORD = "CONTRASEÑA";
 
 // ======================================================
 // MQTT
@@ -76,8 +76,6 @@ const char* WIFI_PASSWORD = "SOA.2019";
 
 constexpr char MQTT_BROKER[] = "broker.emqx.io";
 constexpr uint16_t MQTT_PUERTO = 1883;
-
-// El ID se genera a partir de la MAC del ESP32 para evitar duplicados.
 
 constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo3/lavadero/comando";
 constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo3/lavadero/estado";
