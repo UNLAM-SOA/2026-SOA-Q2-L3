@@ -3,17 +3,18 @@ package com.unlam.soa.grupo3.ropaseca;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.os.Build;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import android.os.Bundle;
-import android.widget.Button;
+import android.view.View;
 import android.widget.TextView;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AppCompatActivity;
 
 /*
-SIMULADO DE WOWKI ACTUALIZADO
+SIMULADO DE WOKWI ACTUALIZADO
 https://wokwi.com/projects/476992389295348737
 
 ESCUCHAR BROKER
@@ -24,14 +25,18 @@ while true; do mosquitto_pub -h broker.emqx.io -p 1883 -t "unlam/soa/grupo3/lava
 
 ENVIAR SENSOR
 mosquitto_pub -h broker.emqx.io -p 1883 -t "unlam/soa/grupo3/lavadero/sensor" -m "{nivel_de_humedad}"
- */
+*/
 
 public class MainActivity extends AppCompatActivity {
 
     private MqttManager mqttManager;
+
     private TextView tvEstadoConexion;
+    private TextView tvDescripcionConexion;
+    private View indicadorConexion;
 
     private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
+
         @Override
         public void onBrokerConectado() {
         }
@@ -63,30 +68,37 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
 
         tvEstadoConexion = findViewById(R.id.tvEstadoConexion);
-        Button btnMonitorear = findViewById(R.id.btnMonitorear);
-        Button btnCondiciones = findViewById(R.id.btnCondiciones);
-        Button btnConexion = findViewById(R.id.btnConexion);
+        tvDescripcionConexion = findViewById(R.id.tvDescripcionConexion);
+        indicadorConexion = findViewById(R.id.indicadorConexion);
+
+        View cardMonitoreo = findViewById(R.id.cardMonitoreo);
+        View cardCondiciones = findViewById(R.id.cardCondiciones);
+        View cardConexion = findViewById(R.id.cardConexion);
 
         mqttManager = MqttManager.getInstance();
         mqttManager.conectar();
-        if (Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                        != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+
+        // Permiso de notificaciones: SE CONSERVA
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
         }
 
-        btnMonitorear.setOnClickListener(v -> abrirActivity(MonitoreoActivity.class));
-        btnCondiciones.setOnClickListener(v -> abrirActivity(CondicionesActivity.class));
-        btnConexion.setOnClickListener(v -> abrirActivity(ConexionActivity.class));
+        cardMonitoreo.setOnClickListener(v -> abrirActivity(MonitoreoActivity.class));
+
+        cardCondiciones.setOnClickListener(v -> abrirActivity(CondicionesActivity.class));
+
+        cardConexion.setOnClickListener(v -> abrirActivity(ConexionActivity.class));
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+
         mqttManager.agregarListener(mqttListener);
         actualizarEstadoEstacion();
     }
@@ -94,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
+
         mqttManager.quitarListener(mqttListener);
     }
 
@@ -107,10 +120,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void mostrarEstacionConectada() {
         tvEstadoConexion.setText(R.string.estacion_conectada);
+        tvDescripcionConexion.setText(R.string.main_descripcion_conectada);
+
+        indicadorConexion.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.success_green)));
     }
 
     private void mostrarEstacionDesconectada() {
         tvEstadoConexion.setText(R.string.estacion_sin_conexion);
+        tvDescripcionConexion.setText(R.string.main_descripcion_desconectada);
+
+        indicadorConexion.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.warning_orange)));
     }
 
     private void abrirActivity(Class<?> activity) {

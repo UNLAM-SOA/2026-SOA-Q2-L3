@@ -1,4 +1,3 @@
-
 package com.unlam.soa.grupo3.ropaseca;
 
 import android.app.Notification;
@@ -33,34 +32,33 @@ public class MonitoreoService extends Service {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private final MqttManager.MqttListener mqttListener =
-            new MqttManager.MqttListener() {
+    private final MqttManager.MqttListener mqttListener = new MqttManager.MqttListener() {
 
-                @Override
-                public void onBrokerConectado() {
-                }
+        @Override
+        public void onBrokerConectado() {
+        }
 
-                @Override
-                public void onBrokerDesconectado() {
-                }
+        @Override
+        public void onBrokerDesconectado() {
+        }
 
-                @Override
-                public void onEstacionConectada() {
-                }
+        @Override
+        public void onEstacionConectada() {
+        }
 
-                @Override
-                public void onEstacionDesconectada() {
-                }
+        @Override
+        public void onEstacionDesconectada() {
+        }
 
-                @Override
-                public void onHumedadRecibida(int humedad) {
-                }
+        @Override
+        public void onHumedadRecibida(int humedad) {
+        }
 
-                @Override
-                public void onEstadoRecibido(String estado) {
-                    handler.post(() -> procesarEstado(estado));
-                }
-            };
+        @Override
+        public void onEstadoRecibido(String estado) {
+            handler.post(() -> procesarEstado(estado));
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -77,19 +75,11 @@ public class MonitoreoService extends Service {
     }
 
     @Override
-    public int onStartCommand(
-            Intent intent,
-            int flags,
-            int startId
-    ) {
+    public int onStartCommand(Intent intent, int flags, int startId) {
         Notification notificacion = crearNotificacionMonitoreo();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                    ID_MONITOREO,
-                    notificacion,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            );
+            startForeground(ID_MONITOREO, notificacion, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
         } else {
             startForeground(ID_MONITOREO, notificacion);
         }
@@ -121,19 +111,11 @@ public class MonitoreoService extends Service {
 
         switch (estado) {
             case ESTADO_ROPA_SECA:
-                mostrarAlerta(
-                        ID_ALERTA_ROPA,
-                        "¡La ropa está seca!",
-                        "La ropa ya está seca. Podés retirarla del tendedero."
-                );
+                mostrarAlerta(ID_ALERTA_ROPA, R.string.notificacion_ropa_seca_titulo, R.string.notificacion_ropa_seca_mensaje);
                 break;
 
             case ESTADO_LLUVIA:
-                mostrarAlerta(
-                        ID_ALERTA_LLUVIA,
-                        "¡Está lloviendo!",
-                        "Está lloviendo mientras tenés ropa secándose."
-                );
+                mostrarAlerta(ID_ALERTA_LLUVIA, R.string.notificacion_lluvia_titulo, R.string.notificacion_lluvia_mensaje);
                 break;
 
             default:
@@ -144,111 +126,51 @@ public class MonitoreoService extends Service {
     }
 
     private void crearCanalesNotificacion() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return;
-        }
 
-        NotificationManager manager =
-                getSystemService(NotificationManager.class);
+        NotificationManager manager = getSystemService(NotificationManager.class);
 
         if (manager == null) {
             return;
         }
 
-        NotificationChannel canalMonitoreo =
-                new NotificationChannel(
-                        CANAL_MONITOREO,
-                        "Monitoreo de ropa",
-                        NotificationManager.IMPORTANCE_LOW
-                );
+        NotificationChannel canalMonitoreo = new NotificationChannel(CANAL_MONITOREO, getString(R.string.notificacion_canal_monitoreo), NotificationManager.IMPORTANCE_LOW);
 
-        canalMonitoreo.setDescription(
-                "Notificación mientras se monitorea el secado"
-        );
+        canalMonitoreo.setDescription(getString(R.string.notificacion_canal_monitoreo_descripcion));
 
-        NotificationChannel canalAlertas =
-                new NotificationChannel(
-                        CANAL_ALERTAS,
-                        "Alertas de ropa",
-                        NotificationManager.IMPORTANCE_HIGH
-                );
+        NotificationChannel canalAlertas = new NotificationChannel(CANAL_ALERTAS, getString(R.string.notificacion_canal_alertas), NotificationManager.IMPORTANCE_HIGH);
 
-        canalAlertas.setDescription(
-                "Avisos cuando la ropa está seca o empieza a llover"
-        );
+        canalAlertas.setDescription(getString(R.string.notificacion_canal_alertas_descripcion));
 
         manager.createNotificationChannel(canalMonitoreo);
         manager.createNotificationChannel(canalAlertas);
     }
 
     private Notification crearNotificacionMonitoreo() {
-        return new NotificationCompat.Builder(
-                this,
-                CANAL_MONITOREO
-        )
-                .setSmallIcon(R.drawable.ic_notificacion_ropa)
-                .setContentTitle("Monitoreando la ropa")
-                .setContentText(
-                        "El secado se está monitoreando, te avisaremos cuando la ropa esté seca o si empieza a llover."
-                )
-                .setContentIntent(crearIntentAbrirMonitoreo())
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build();
+        return new NotificationCompat.Builder(this, CANAL_MONITOREO).setSmallIcon(R.drawable.ic_notificacion_ropa).setContentTitle(getString(R.string.notificacion_monitoreo_titulo)).setContentText(getString(R.string.notificacion_monitoreo_mensaje)).setContentIntent(crearIntentAbrirMonitoreo()).setOngoing(true).setOnlyAlertOnce(true).setPriority(NotificationCompat.PRIORITY_LOW).build();
     }
 
-    private void mostrarAlerta(
-            int id,
-            String titulo,
-            String mensaje
-    ) {
-        NotificationManager manager =
-                getSystemService(NotificationManager.class);
+    private void mostrarAlerta(int id, int tituloResId, int mensajeResId) {
+        NotificationManager manager = getSystemService(NotificationManager.class);
 
         if (manager == null) {
             return;
         }
 
-        Notification notificacion =
-                new NotificationCompat.Builder(
-                        this,
-                        CANAL_ALERTAS
-                )
-                        .setSmallIcon(R.drawable.ic_notificacion_ropa)
-                        .setContentTitle(titulo)
-                        .setContentText(mensaje)
-                        .setContentIntent(crearIntentAbrirMonitoreo())
-                        .setAutoCancel(true)
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .build();
+        Notification notificacion = new NotificationCompat.Builder(this, CANAL_ALERTAS).setSmallIcon(R.drawable.ic_notificacion_ropa).setContentTitle(getString(tituloResId)).setContentText(getString(mensajeResId)).setContentIntent(crearIntentAbrirMonitoreo()).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_HIGH).build();
 
         manager.notify(id, notificacion);
     }
 
     private PendingIntent crearIntentAbrirMonitoreo() {
-        Intent intent = new Intent(
-                this,
-                MonitoreoActivity.class
-        );
+        Intent intent = new Intent(this, MonitoreoActivity.class);
 
-        intent.setFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
-        );
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
-        }
+        flags |= PendingIntent.FLAG_IMMUTABLE;
 
-        return PendingIntent.getActivity(
-                this,
-                0,
-                intent,
-                flags
-        );
+        return PendingIntent.getActivity(this, 0, intent, flags);
     }
 
     @Override

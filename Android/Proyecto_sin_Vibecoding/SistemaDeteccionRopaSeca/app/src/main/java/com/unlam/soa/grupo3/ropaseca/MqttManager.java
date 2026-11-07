@@ -66,10 +66,15 @@ public class MqttManager {
 
     public interface MqttListener {
         void onBrokerConectado();
+
         void onBrokerDesconectado();
+
         void onEstacionConectada();
+
         void onEstacionDesconectada();
+
         void onEstadoRecibido(String estado);
+
         void onHumedadRecibida(int humedad);
     }
 
@@ -191,9 +196,7 @@ public class MqttManager {
         }
 
         try {
-            MqttMessage mensaje = new MqttMessage(
-                    comando.getBytes(StandardCharsets.UTF_8)
-            );
+            MqttMessage mensaje = new MqttMessage(comando.getBytes(StandardCharsets.UTF_8));
             mensaje.setQos(0);
 
             mqttClient.publish(TOPIC_COMANDO, mensaje);

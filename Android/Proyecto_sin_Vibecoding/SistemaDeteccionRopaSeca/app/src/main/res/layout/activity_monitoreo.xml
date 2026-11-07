@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
+        android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- ENCABEZADO -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -23,176 +29,280 @@
                 android:id="@+id/btnVolver"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_lavender_secondary"
                 android:contentDescription="@string/volver"
-                android:padding="12dp"
-                android:scaleType="center"
-                android:src="@drawable/ic_arrow_back" />
+                android:padding="13dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_arrow_back"
+                app:tint="@color/lavender_dark" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="16dp"
                 android:text="@string/monitoreo_titulo"
                 android:textColor="@color/primary_text"
                 android:textSize="28sp"
                 android:textStyle="bold" />
-
         </LinearLayout>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/estado_actual"
+            android:layout_marginTop="16dp"
+            android:text="@string/monitoreo_subtitulo"
             android:textColor="@color/secondary_text"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:textSize="14sp" />
 
+        <!-- TARJETA ESTADO ACTUAL -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@color/card_background"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:layout_marginTop="32dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingBottom="12dp">
 
-            <TextView
-                android:id="@+id/tvEstado"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/estado_espera"
-                android:textColor="@color/card_text"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:background="@drawable/bg_lavender_card"
+                android:elevation="3dp"
+                android:orientation="vertical"
+                android:padding="20dp"
+                tools:ignore="UselessParent">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:background="@drawable/bg_lavender_secondary"
+                        android:contentDescription="@string/monitoreo_icono_ropa"
+                        android:padding="13dp"
+                        android:src="@drawable/ic_home_shirt" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.08"
+                            android:text="@string/estado_actual"
+                            android:textColor="@color/secondary_text"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvEstado"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:text="@string/estado_espera"
+                            android:textColor="@color/primary_text"
+                            android:textSize="19sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="20dp"
+                    android:background="@color/divider" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/monitoreo_conexion_estacion"
+                        android:textColor="@color/secondary_text"
+                        android:textSize="13sp" />
+
+                    <ImageView
+                        android:id="@+id/iconoEstadoConexion"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@string/monitoreo_conexion_estacion"
+                        android:src="@drawable/ic_connection_cross" />
+
+                    <TextView
+                        android:id="@+id/tvEstadoConexion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/monitoreo_sin_conexion"
+                        android:textColor="@color/warning_orange"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- PROGRESO DE SECADO -->
+        <LinearLayout
+            android:id="@+id/bloqueDatosSecado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingBottom="12dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_lavender_card"
+                android:elevation="3dp"
+                android:orientation="vertical"
+                android:padding="16dp"
+                tools:ignore="UselessParent">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:letterSpacing="0.06"
+                    android:text="@string/progreso_secado"
+                    android:textColor="@color/lavender_dark"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- CÍRCULO REAL DE PROGRESO -->
+                <FrameLayout
+                    android:layout_width="210dp"
+                    android:layout_height="210dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="18dp">
+
+                    <com.unlam.soa.grupo3.ropaseca.CircularProgressView
+                        android:id="@+id/progressSecado"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvProgreso"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/porcentaje_cero"
+                            android:textColor="@color/primary_text"
+                            android:textSize="38sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/monitoreo_completado"
+                            android:textColor="@color/muted_text"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </FrameLayout>
+
+                <!-- FRANJA DE HUMEDAD -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_lavender_secondary"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="15dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@string/monitoreo_icono_humedad"
+                        android:src="@drawable/ic_monitoreo_droplets" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="9dp"
+                        android:layout_weight="1"
+                        android:text="@string/monitoreo_humedad_actual"
+                        android:textColor="@color/card_text"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tvHumedad"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/porcentaje_vacio"
+                        android:textColor="@color/lavender_dark"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvUltimaActualizacion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="@string/esperando_actualizacion"
+                    android:textColor="@color/muted_text"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- MENSAJES: ESPERA / ROPA SECA / LLUVIA -->
         <LinearLayout
             android:id="@+id/bloqueMensajeEstado"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@color/card_background"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_lavender_secondary"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="22dp"
+            android:visibility="gone">
 
             <TextView
                 android:id="@+id/tvTituloMensajeEstado"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/espera_titulo"
-                android:textColor="@color/primary_text"
+                android:textColor="@color/lavender_dark"
                 android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvMensajeEstado"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/espera_mensaje"
-                android:textColor="@color/secondary_text"
-                android:textSize="14sp" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/bloqueDatosSecado"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:text="@string/nivel_humedad"
-                android:textColor="@color/secondary_text"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:background="@color/card_background"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:id="@+id/tvHumedad"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/porcentaje_vacio"
-                    android:textColor="@color/primary_text"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/humedad_descripcion"
-                    android:textColor="@color/secondary_text"
-                    android:textSize="14sp" />
-
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="@string/progreso_secado"
-                android:textColor="@color/secondary_text"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <ProgressBar
-                android:id="@+id/progressSecado"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="12dp"
-                android:layout_marginTop="12dp"
-                android:max="100"
-                android:progress="0"
-                android:progressBackgroundTint="@color/divider"
-                android:progressTint="@color/accent" />
-
-            <TextView
-                android:id="@+id/tvProgreso"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="6dp"
-                android:text="@string/porcentaje_vacio"
-                android:textColor="@color/body_text"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvUltimaActualizacion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="@string/esperando_actualizacion"
-                android:textColor="@color/muted_text"
-                android:textSize="13sp" />
-
+                android:lineSpacingExtra="4dp"
+                android:textColor="@color/card_text"
+                android:textSize="14sp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvEstadoConexion"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@color/card_background"
-            android:padding="14dp"
-            android:textColor="@color/body_text"
-            android:textSize="14sp"
-            android:visibility="gone" />
-
+        <!-- BOTÓN INICIAR / FINALIZAR -->
         <Button
             android:id="@+id/btnCiclo"
             android:layout_width="match_parent"
@@ -200,10 +310,29 @@
             android:layout_marginTop="24dp"
             android:backgroundTint="@color/accent"
             android:text="@string/iniciar_ciclo"
+            android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="15sp"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- ESPACIO FLEXIBLE -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- FOOTER -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="12dp"
+            android:gravity="center"
+            android:letterSpacing="0.08"
+            android:text="@string/main_pie"
+            android:textColor="@color/muted_text"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
     </LinearLayout>
-
 </ScrollView>
