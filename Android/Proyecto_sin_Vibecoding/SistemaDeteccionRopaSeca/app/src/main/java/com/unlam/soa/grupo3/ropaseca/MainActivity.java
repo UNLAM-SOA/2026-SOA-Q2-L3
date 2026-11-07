@@ -1,6 +1,11 @@
 package com.unlam.soa.grupo3.ropaseca;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
@@ -67,6 +72,12 @@ public class MainActivity extends AppCompatActivity {
 
         mqttManager = MqttManager.getInstance();
         mqttManager.conectar();
+        if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
+        }
 
         btnMonitorear.setOnClickListener(v -> abrirActivity(MonitoreoActivity.class));
         btnCondiciones.setOnClickListener(v -> abrirActivity(CondicionesActivity.class));
