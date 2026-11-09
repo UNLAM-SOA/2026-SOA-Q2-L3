@@ -48,9 +48,11 @@ constexpr int PWM_MAXIMO = 255;
 constexpr unsigned long PERIODO_LECTURA_MS = 50;
 constexpr unsigned long PERIODO_LOG_MS = 1000;
 constexpr unsigned long ANTIRREBOTE_BOTON_MS = 40;
+constexpr unsigned long BLOQUEO_BOTON_INICIAL_MS = 1000;
 constexpr unsigned long PERIODO_BUZZER_SECA_MS = 1200;
 constexpr unsigned long PERIODO_BUZZER_LLUVIA_MS = 300;
 constexpr unsigned long PERIODO_RECONEXION_MQTT_MS = 5000;
+constexpr unsigned long PERIODO_RECONEXION_WIFI_MS = 10000;
 constexpr unsigned long PERIODO_PUBLICACION_ESTADO_MS = 5000;
 constexpr unsigned long PERIODO_PUBLICACION_SENSOR_MS = 5000;
 
@@ -65,8 +67,8 @@ constexpr unsigned int FRECUENCIA_BUZZER_LLUVIA_HZ = 1600;
 // WIFI
 // ======================================================
 
-constexpr char WIFI_SSID[] = "TU_WIFI";
-constexpr char WIFI_PASSWORD[] = "TU_PASSWORD";
+const char* WIFI_SSID = "WIFI";
+const char* WIFI_PASSWORD = "CONTRASEÑA";
 
 // ======================================================
 // MQTT
@@ -74,8 +76,6 @@ constexpr char WIFI_PASSWORD[] = "TU_PASSWORD";
 
 constexpr char MQTT_BROKER[] = "broker.emqx.io";
 constexpr uint16_t MQTT_PUERTO = 1883;
-
-constexpr char MQTT_CLIENT_ID[] = "esp32-lavadero-grupo3";
 
 constexpr char MQTT_TOPIC_COMANDO[] = "unlam/soa/grupo3/lavadero/comando";
 constexpr char MQTT_TOPIC_ESTADO[] = "unlam/soa/grupo3/lavadero/estado";
@@ -157,6 +157,9 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 unsigned long ultimoIntentoMQTTMs = 0;
+unsigned long ultimoIntentoWiFiMs = 0;
+bool wifiEstabaConectado = false;
+bool mqttEstabaConectado = false;
 unsigned long ultimaPublicacionEstadoMs = 0;
 unsigned long ultimaPublicacionSensorMs = 0;
 
@@ -189,6 +192,7 @@ void tareaSensores(void *parametros);
 void tareaFSM(void *parametros);
 
 void iniciarWiFi();
+void verificarWiFi();
 void actualizarMQTT();
 void recibirMensajeMQTT(char *topic, byte *payload, unsigned int length);
 
@@ -240,6 +244,9 @@ void setup()
   pinMode(PIN_BROCHE_2, INPUT);
   pinMode(PIN_LLUVIA, INPUT);
   pinMode(PIN_BOTON_CICLO, INPUT_PULLUP);
+  ultimaLecturaBoton = digitalRead(PIN_BOTON_CICLO);
+  estadoEstableBoton = ultimaLecturaBoton;
+  ultimoCambioBotonMs = millis();
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
 
@@ -255,6 +262,8 @@ void setup()
 
   mqttClient.setServer(MQTT_BROKER, MQTT_PUERTO);
   mqttClient.setCallback(recibirMensajeMQTT);
+  mqttClient.setKeepAlive(30);
+  mqttClient.setSocketTimeout(10);
 
   colaEventos = xQueueCreate(CANTIDAD_EVENTOS_COLA, sizeof(Evento));
 
@@ -296,8 +305,37 @@ void loop()
 
 void iniciarWiFi()
 {
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  ultimoIntentoWiFiMs = millis();
   Serial.println("[WIFI] Iniciando conexion...");
+}
+
+void verificarWiFi()
+{
+  bool conectado = (WiFi.status() == WL_CONNECTED);
+
+  if (conectado) {
+    if (!wifiEstabaConectado) {
+      Serial.print("[WIFI] Conectado. IP: ");
+      Serial.println(WiFi.localIP());
+    }
+    wifiEstabaConectado = true;
+    return;
+  }
+
+  if (wifiEstabaConectado) {
+    Serial.println("[WIFI] Conexion perdida.");
+    wifiEstabaConectado = false;
+  }
+
+  if (millis() - ultimoIntentoWiFiMs >= PERIODO_RECONEXION_WIFI_MS) {
+    ultimoIntentoWiFiMs = millis();
+    Serial.print("[WIFI] Reintentando conexion. Estado: ");
+    Serial.println(static_cast<int>(WiFi.status()));
+    WiFi.reconnect();
+  }
 }
 
 // ======================================================
@@ -307,12 +345,20 @@ void iniciarWiFi()
 void actualizarMQTT()
 {
   if (WiFi.status() != WL_CONNECTED) {
+    mqttEstabaConectado = false;
     return;
   }
 
   if (mqttClient.connected()) {
+    mqttEstabaConectado = true;
     mqttClient.loop();
     return;
+  }
+
+  if (mqttEstabaConectado) {
+    Serial.print("[MQTT] Conexion perdida. Codigo: ");
+    Serial.println(mqttClient.state());
+    mqttEstabaConectado = false;
   }
 
   unsigned long ahora = millis();
@@ -325,7 +371,13 @@ void actualizarMQTT()
 
   Serial.println("[MQTT] Intentando conectar...");
 
-  if (mqttClient.connect(MQTT_CLIENT_ID)) {
+  String clientId = "esp32-lavadero-" + WiFi.macAddress();
+  clientId.replace(":", "");
+  Serial.print("[MQTT] Client ID: ");
+  Serial.println(clientId);
+
+  if (mqttClient.connect(clientId.c_str())) {
+    mqttEstabaConectado = true;
     Serial.println("[MQTT] Conectado al broker.");
 
     if (mqttClient.subscribe(MQTT_TOPIC_COMANDO)) {
@@ -336,7 +388,8 @@ void actualizarMQTT()
 
     publicarEstadoMQTT();
   } else {
-    Serial.println("[MQTT] No se pudo conectar.");
+    Serial.print("[MQTT] No se pudo conectar. Codigo: ");
+    Serial.println(mqttClient.state());
   }
 }
 
@@ -490,6 +543,7 @@ void tareaFSM(void *parametros)
   Evento evento;
 
   while (true) {
+    verificarWiFi();
     actualizarMQTT();
     actualizarPublicacionEstadoMQTT();
     actualizarPublicacionSensorMQTT();
@@ -526,7 +580,7 @@ void leerSensores()
   );
 
   sensores.adcLluvia = analogRead(PIN_LLUVIA);
-  sensores.lluvia = sensores.adcLluvia >= UMBRAL_LLUVIA_ADC;
+  sensores.lluvia = sensores.adcLluvia <= UMBRAL_LLUVIA_ADC;
 
   leerBoton();
 }
@@ -538,6 +592,13 @@ void leerSensores()
 void leerBoton()
 {
   sensores.botonCicloPulsado = false;
+
+  if (millis() < BLOQUEO_BOTON_INICIAL_MS) {
+    ultimaLecturaBoton = digitalRead(PIN_BOTON_CICLO);
+    estadoEstableBoton = ultimaLecturaBoton;
+    ultimoCambioBotonMs = millis();
+    return;
+  }
 
   bool lecturaActual = digitalRead(PIN_BOTON_CICLO);
 
@@ -571,8 +632,8 @@ int calcularHumedad(int lecturaADC)
     lecturaADC,
     ADC_MINIMO,
     ADC_MAXIMO,
-    PORCENTAJE_MAXIMO,
-    PORCENTAJE_MINIMO
+    PORCENTAJE_MINIMO,
+    PORCENTAJE_MAXIMO
   );
 
   return constrain(
@@ -648,12 +709,14 @@ void ejecutarFSM(Evento evento)
       switch (evento) {
 
         case Evento::BOTON_CICLO:
+          actualizarLedSecado();
+          apagarBuzzer();
+          cambiarEstado(Estado::MONITOREANDO_SECADO);
+          break;
+
         case Evento::COMANDO_INICIAR:
           actualizarLedSecado();
           apagarBuzzer();
-
-          Serial.println("[INFO] Monitoreo iniciado.");
-
           cambiarEstado(Estado::MONITOREANDO_SECADO);
           break;
 
@@ -954,7 +1017,11 @@ void mostrarLecturas()
 {
   Serial.print("[SENSORES] ");
 
-  Serial.print("Prenda 1: ");
+  Serial.print("ADC Broche 1: ");
+  Serial.print(sensores.adcPrenda1);
+  Serial.print(" | ADC Broche 2: ");
+  Serial.print(sensores.adcPrenda2);
+  Serial.print(" | Prenda 1: ");
   Serial.print(sensores.humedadPrenda1Pct);
   Serial.print("%");
 
