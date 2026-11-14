@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+    <TextView android:id="@+id/tvConexionGlobal" style="@style/Texto" android:text="@string/broker_desconectado" />
+    <TextView android:id="@+id/tvCondicionGlobal" style="@style/Texto" android:text="@string/condicion_desconocida" />
+    <TextView android:id="@+id/tvResultadoComando" style="@style/Texto" android:text="@string/sin_comandos" />
+</LinearLayout>

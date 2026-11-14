@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "author": "Grupo - Sistema de deteccion de ropa seca",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 206.3, "left": 849.4, "attrs": {} },
+    { "type": "wokwi-breadboard", "id": "bb2", "top": -60.6, "left": 569.2, "attrs": {} },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -10.9,
+      "left": 652.6,
+      "attrs": { "value": "0" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rBroche1",
+      "top": 81.05,
+      "left": 699.4,
+      "rotate": 180,
+      "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot2",
+      "top": -10.9,
+      "left": 767.8,
+      "attrs": { "value": "0" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rBroche2",
+      "top": 81.05,
+      "left": 814.6,
+      "rotate": 180,
+      "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "potRain",
+      "top": -10.9,
+      "left": 921.4,
+      "attrs": { "value": "0", "label": "SECADO" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnCycle",
+      "top": 12.6,
+      "left": 582.6,
+      "rotate": 90,
+      "attrs": { "color": "green", "label": "CICLO", "bounce": "0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": -32.4,
+      "left": 1127,
+      "attrs": { "color": "green", "label": "SECADO" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 43.2,
+      "left": 1122.65,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 165.6,
+      "left": 529.8,
+      "attrs": { "volume": "0.1" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text1",
+      "top": -134.4,
+      "left": 662.4,
+      "attrs": { "text": "Contacto\nbroche 1\n(3,3v)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text2",
+      "top": -134.4,
+      "left": 777.6,
+      "attrs": { "text": "Contacto\nbroche 2\n(3,3v)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text3",
+      "top": -96,
+      "left": 921.6,
+      "attrs": { "text": "FC-37(3,3v)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text4",
+      "top": -96,
+      "left": 1113.6,
+      "attrs": { "text": "Led(3,3v)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text5",
+      "top": -124.8,
+      "left": 585.6,
+      "attrs": { "text": "Pulsador \n(3,3v)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text6",
+      "top": 259.2,
+      "left": 470.4,
+      "attrs": { "text": "Buzzer (5V)" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text7",
+      "top": -76.8,
+      "left": 1228.8,
+      "attrs": { "text": "Fuente 5V" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text8",
+      "top": 163.2,
+      "left": 1161.6,
+      "attrs": { "text": "Fuente 3,3V" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "bb2:bp.50", "esp:3V3", "red", [ "h85.6", "v239.1" ] ],
+    [ "bb2:bn.50", "esp:GND.1", "black", [ "h76", "v219.5", "h-297.3" ] ],
+    [ "esp:D25", "bz1:2", "orange", [ "h-249.6", "h-172.4" ] ],
+    [ "bz1:1", "bb2:tn.1", "black", [ "h-48", "v-287.9" ] ],
+    [ "bb2:10b.j", "bb2:bn.7", "black", [ "v0" ] ],
+    [ "bb2:12b.j", "bb2:bp.9", "red", [ "v0" ] ],
+    [ "esp:D35", "bb2:11b.j", "green", [ "h-163.2", "v-173.2" ] ],
+    [ "bb2:18b.j", "bb2:bn.14", "black", [ "v0" ] ],
+    [ "bb2:22b.j", "bb2:bn.17", "black", [ "v0" ] ],
+    [ "bb2:24b.j", "bb2:bp.19", "red", [ "v0" ] ],
+    [ "esp:D34", "bb2:23b.j", "green", [ "h-48", "v-163.4" ] ],
+    [ "bb2:30b.j", "bb2:bn.24", "black", [ "v0" ] ],
+    [ "bb2:38b.j", "bb2:bn.32", "black", [ "v0" ] ],
+    [ "bb2:40b.j", "bb2:bp.34", "red", [ "v0" ] ],
+    [ "esp:D32", "bb2:39b.j", "blue", [ "h-19.2", "v-86.5", "h124.8" ] ],
+    [ "esp:D18", "bb2:59b.j", "green", [ "h0" ] ],
+    [ "bb2:bn.47", "bb2:58t.e", "black", [ "v-106.9", "h-0.8" ] ],
+    [ "bb2:58b.i", "bb2:58b.j", "green", [ "v0" ] ],
+    [ "esp:GND.2", "bb2:tn.50", "black", [ "h-48", "v86.3", "h508.8", "v-479.9" ] ],
+    [ "esp:VIN", "bb2:tp.50", "red", [ "h-38.4", "v67.2", "h489.6", "v-480", "h-133.6" ] ],
+    [ "bb2:5b.i", "bb2:bn.3", "black", [ "v0" ] ],
+    [ "bb2:3b.i", "esp:D26", "cyan", [ "v0" ] ],
+    [ "pot1:GND", "bb2:10b.f", "", [ "$bb" ] ],
+    [ "pot1:SIG", "bb2:11b.f", "", [ "$bb" ] ],
+    [ "pot1:VCC", "bb2:12b.f", "", [ "$bb" ] ],
+    [ "rBroche1:1", "bb2:18b.i", "", [ "$bb" ] ],
+    [ "rBroche1:2", "bb2:12b.i", "", [ "$bb" ] ],
+    [ "pot2:GND", "bb2:22b.f", "", [ "$bb" ] ],
+    [ "pot2:SIG", "bb2:23b.f", "", [ "$bb" ] ],
+    [ "pot2:VCC", "bb2:24b.f", "", [ "$bb" ] ],
+    [ "rBroche2:1", "bb2:30b.i", "", [ "$bb" ] ],
+    [ "rBroche2:2", "bb2:24b.i", "", [ "$bb" ] ],
+    [ "potRain:GND", "bb2:38b.f", "", [ "$bb" ] ],
+    [ "potRain:SIG", "bb2:39b.f", "", [ "$bb" ] ],
+    [ "potRain:VCC", "bb2:40b.f", "", [ "$bb" ] ],
+    [ "btnCycle:1.l", "bb2:5t.c", "", [ "$bb" ] ],
+    [ "btnCycle:2.l", "bb2:3t.c", "", [ "$bb" ] ],
+    [ "btnCycle:1.r", "bb2:5b.h", "", [ "$bb" ] ],
+    [ "btnCycle:2.r", "bb2:3b.h", "", [ "$bb" ] ],
+    [ "led1:A", "bb2:59t.c", "", [ "$bb" ] ],
+    [ "led1:C", "bb2:58t.c", "", [ "$bb" ] ],
+    [ "r1:1", "bb2:59t.d", "", [ "$bb" ] ],
+    [ "r1:2", "bb2:59b.h", "", [ "$bb" ] ]
+  ],
+  "dependencies": {}
+}
