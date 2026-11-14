@@ -14,9 +14,9 @@ import androidx.core.content.ContextCompat;
 
 public class CondicionesActivity extends AppCompatActivity implements SensorEventListener {
 
-    private static final float LUZ_MUY_BAJA = 100;
-    private static final float LUZ_BAJA = 500;
-    private static final float LUZ_BUENA = 10000;
+    private static final float LUZ_MUY_BAJA = 50;
+    private static final float LUZ_BAJA = 200;
+    private static final float LUZ_BUENA = 1000;
 
     private SensorManager sensorManager;
     private Sensor sensorLuz;
